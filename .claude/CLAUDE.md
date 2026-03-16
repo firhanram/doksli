@@ -46,6 +46,27 @@ See `docs/agent-workflow.md` for the full protocol and checklist format.
 - Light mode only — never remove `.preferredColorScheme(.light)`
 - Never put business logic in Views — belongs in Services
 
+## Layout reference
+
+See `docs/doksli.png` for the target UI. Key layout decisions visible in the screenshot:
+
+**3-column `NavigationSplitView`:**
+- **Left sidebar** — workspace selector dropdown + tab bar (Collections / History / Env) + scrollable tree (`OutlineGroup`) + `+ New request` button pinned at bottom
+- **Center** — request name + Save/Duplicate buttons · URL bar (method picker + URL field + Send button) · request tab bar (Params / Headers / Body / Auth / Pre-req) · KV editor · response stats bar (status · ms · KB · Copy / Save / Clear) · response tab bar (Body / Headers / Cookies / Raw / Preview) · JSON tree viewer
+- **Right panel** — response headers list + recent requests history with method badge + URL + status + time
+
+**URL bar:** variables like `{{page}}` rendered in brand orange (`AppColors.brandHover`), non-var text in default color.
+
+**Tab bars:** custom segment control (NOT `TabView`) — active tab has underline in `AppColors.brand`.
+
+**Method badges:** colored pill — GET green, POST blue, PUT amber, DELETE red, PATCH purple, OPTIONS teal, HEAD gray.
+
+**Response stats bar:** status code chip colored by range (2xx green / 3xx amber / 4xx–5xx red) + duration in ms + size in KB.
+
+**Environment selector:** toolbar `Menu` top-right showing active environment name (e.g. "Production").
+
+**Sidebar tree:** section headers in eyebrow style (all-caps, `AppFonts.eyebrow`) · folders expandable with chevron · active request row highlighted with `AppColors.brandTint50` background.
+
 ## Current phase
 
 See `docs/todos.md` for full checklist.

@@ -50,27 +50,27 @@ Every task requires a verification checklist written and approved before code st
 ## Phase 1 — Data models
 > Define all `Codable` structs before writing a single View.
 
-- [ ] `Workspace` model
+- [x] ✅ `Workspace` model — approved 2026-03-16
   - Checklist: `docs/checklists/01-workspace-model.md`
   - Verify: `Codable` · `Identifiable` · all fields match `architecture.md` · encode→decode round-trip passes
 
-- [ ] `Collection` + `Folder` + recursive `Item` enum
+- [x] ✅ `Collection` + `Folder` + recursive `Item` enum — approved 2026-03-16
   - Checklist: `docs/checklists/01-collection-model.md`
   - Verify: `Item` enum has exactly `.folder(Folder)` and `.request(Request)` · arbitrary depth encodes correctly · no infinite loop risk
 
-- [ ] `Request` + `KVPair` + `HTTPMethod` + `RequestBody` + `Auth`
+- [x] ✅ `Request` + `KVPair` + `HTTPMethod` + `RequestBody` + `Auth` — approved 2026-03-16
   - Checklist: `docs/checklists/01-request-model.md`
   - Verify: all associated enums are `Codable` · `RequestBody` covers all 4 cases · `Auth` covers all 4 cases
 
-- [ ] `Response` model
+- [x] ✅ `Response` model — approved 2026-03-16
   - Checklist: `docs/checklists/01-response-model.md`
   - Verify: `Codable` (needed for history) · `body: Data` encodes as base64 · all fields present
 
-- [ ] `Environment` + `EnvVar`
+- [x] ✅ `Environment` + `EnvVar` — approved 2026-03-16
   - Checklist: `docs/checklists/01-environment-model.md`
   - Verify: `Codable` · `enabled: Bool` present on `EnvVar` · encode→decode round-trip passes
 
-- [ ] `HistoryEntry`
+- [x] ✅ `HistoryEntry` — approved 2026-03-16
   - Checklist: `docs/checklists/01-history-entry-model.md`
   - Verify: `Codable` · snapshot — not a reference to live `Request` · `timestamp: Date` encodes as ISO8601
 
