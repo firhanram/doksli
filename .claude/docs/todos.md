@@ -10,7 +10,7 @@ Every task requires a verification checklist written and approved before code st
 | Marker | Meaning |
 |---|---|
 | `[ ]` | Not started |
-| `[~]` | Checklist written, awaiting checklist review |
+| `[b]` | Checklist written, awaiting checklist review |
 | `[b]` | Building — checklist approved, code in progress |
 | `[s]` | Self-check done, awaiting Reviewer |
 | `[x]` | ✅ APPROVED — done |
@@ -21,27 +21,27 @@ Every task requires a verification checklist written and approved before code st
 ## Phase 0 — Project setup
 > Must be done before writing any Swift code.
 
-- [ ] Create macOS app target in Xcode
+- [x] ✅ Create macOS app target in Xcode — approved 2026-03-16
   - Checklist: `docs/checklists/00-xcode-setup.md`
   - Verify: SwiftUI lifecycle · macOS 13+ · bundle ID `com.yourname.doksli` · sandbox entitlement for outgoing connections
 
-- [ ] Create storage directory scheme
+- [x] ✅ Create storage directory scheme — approved 2026-03-16
   - Checklist: `docs/checklists/00-storage-scheme.md`
   - Verify: `~/.doksli/v1/` exists on first launch · `VERSION` file written · directory not inside app bundle
 
-- [ ] Set up folder structure
+- [x] ✅ Set up folder structure — approved 2026-03-16
   - Checklist: `docs/checklists/00-folder-structure.md`
   - Verify: matches `file-structure.md` exactly · no extra files · no missing groups in Xcode
 
-- [ ] `AppColors.swift`
+- [x] ✅ `AppColors.swift` — approved 2026-03-16
   - Checklist: `docs/checklists/00-appcolors.md`
   - Verify: every token from `design-system.md` is present · no hardcoded hex anywhere else · compiles clean
 
-- [ ] `AppFonts.swift`
+- [x] ✅ `AppFonts.swift` — approved 2026-03-16
   - Checklist: `docs/checklists/00-appfonts.md`
   - Verify: all 5 font roles present · SF Mono for mono role · no `UIFont` / `NSFont` used directly in views
 
-- [ ] `AppSpacing.swift`
+- [x] ✅ `AppSpacing.swift` — approved 2026-03-16
   - Checklist: `docs/checklists/00-appspacing.md`
   - Verify: all 7 spacing values + 5 radius values present · all typed as `CGFloat` · no magic numbers in views
 

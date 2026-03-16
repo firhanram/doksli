@@ -35,6 +35,19 @@ See `docs/agent-workflow.md` for the full protocol and checklist format.
 @docs/file-structure.md
 @docs/todos.md
 
+## Commit rules
+
+See `COMMITS.md` for the full spec. Summary:
+
+- Follow [Conventional Commits](https://www.conventionalcommits.org): `<type>(<scope>): <subject>`
+- Subject: imperative mood, sentence case, 72 chars max, no period
+- Types: `feat` · `fix` · `refactor` · `test` · `docs` · `style` · `chore` · `perf` · `revert`
+- Scope required for all types except `docs` and `chore` — scopes map to folder structure (e.g. `models`, `tokens`, `storage`, `shell`, `sidebar`, `request`, `response`, `env`, `history`, `config`)
+- One logical change per commit — if the subject needs "and", split it
+- Footer records reviewer sign-off after `APPROVED`: `Reviewed-by:` + `Checklist:`
+
+---
+
 ## Hard rules — never break these
 
 - Never hardcode hex colors — use `AppColors` tokens only
