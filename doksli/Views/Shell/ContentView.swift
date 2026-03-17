@@ -10,7 +10,7 @@ struct ContentView: View {
             SidebarView()
                 .navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 300)
         } content: {
-            contentPlaceholder
+            RequestView()
         } detail: {
             detailPlaceholder
         }
@@ -19,19 +19,7 @@ struct ContentView: View {
         .toolbar { ToolbarView(appState: appState) }
     }
 
-    // MARK: Placeholders — replaced in Phases 6–7
-
-    private var contentPlaceholder: some View {
-        VStack {
-            Spacer()
-            Text("Request Editor")
-                .font(AppFonts.title)
-                .foregroundColor(AppColors.textTertiary)
-            Spacer()
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(AppColors.canvas)
-    }
+    // MARK: Placeholder — replaced in Phase 7
 
     private var detailPlaceholder: some View {
         VStack {

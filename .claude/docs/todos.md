@@ -164,23 +164,23 @@ Every task requires a verification checklist written and approved before code st
 ## Phase 6 — Request editor
 > Build URL bar + Send first. Then tab panels one at a time.
 
-- [ ] URL bar
+- [x] ✅ URL bar — approved 2026-03-17
   - Checklist: `docs/checklists/06-url-bar.md`
   - Verify: method picker reflects current method · Send triggers `HTTPClient.send` async · loading spinner during request · response stored in `AppState.pendingResponse`
 
-- [ ] `TabBarView` custom segment control
+- [x] ✅ `TabBarView` custom segment control — approved 2026-03-17
   - Checklist: `docs/checklists/06-tab-bar.md`
   - Verify: NOT `TabView` · Params/Headers/Body/Auth tabs · active tab underline in `AppColors.brand` · content swaps correctly
 
-- [ ] `KVEditor`
+- [x] ✅ `KVEditor` — approved 2026-03-17
   - Checklist: `docs/checklists/06-kv-editor.md`
   - Verify: toggle enables/disables · key and value editable inline · add appends blank enabled row · delete removes · shared by Params + Headers without duplication
 
-- [ ] Body editor
+- [x] ✅ Body editor — approved 2026-03-17
   - Checklist: `docs/checklists/06-body-editor.md`
   - Verify: none/raw/form-data/urlEncoded modes · raw uses `AppFonts.mono` · form-data reuses `KVEditor` · urlEncoded encodes as `key=value&key=value`
 
-- [ ] Auth editor
+- [x] ✅ Auth editor — approved 2026-03-17
   - Checklist: `docs/checklists/06-auth-editor.md`
   - Verify: 4 modes · bearer auto-injects `Authorization: Bearer <token>` · injected header does NOT appear in UI headers list
 
