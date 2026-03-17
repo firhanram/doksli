@@ -87,7 +87,7 @@ private func makeEnv(_ vars: [(key: String, value: String, enabled: Bool)]) -> E
 
 @Test func buildRequestRawBody() throws {
     let body = "{\"name\":\"Alice\"}"
-    let request = makeRequest(body: .raw(body))
+    let request = makeRequest(body: .json(body))
     let urlRequest = try HTTPClient.buildRequest(from: request, environment: nil)
     #expect(urlRequest.httpBody == Data(body.utf8))
 }
@@ -168,7 +168,7 @@ func integrationPOSTJSON() async throws {
     let body = "{\"name\":\"Alice\"}"
     let headers = [KVPair(id: UUID(), key: "Content-Type", value: "application/json", enabled: true)]
     let request = makeRequest(method: .POST, url: "https://httpbin.org/post",
-                               headers: headers, body: .raw(body))
+                               headers: headers, body: .json(body))
     let response = try await HTTPClient.send(request, environment: nil)
     #expect(response.statusCode == 200)
     let bodyString = String(data: response.body, encoding: .utf8) ?? ""

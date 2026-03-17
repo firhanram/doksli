@@ -69,7 +69,7 @@ import Foundation
 
     let bodies: [RequestBody] = [
         .none,
-        .raw("{\"name\":\"Alice\"}"),
+        .json("{\"name\":\"Alice\"}"),
         .formData([KVPair(id: UUID(), key: "username", value: "alice", enabled: true),
                    KVPair(id: UUID(), key: "role", value: "admin", enabled: false)]),
         .urlEncoded([KVPair(id: UUID(), key: "q", value: "hello world", enabled: true)])
@@ -106,7 +106,7 @@ import Foundation
         url: "https://api.example.com/users",
         params: [],
         headers: [KVPair(id: UUID(), key: "Content-Type", value: "application/json", enabled: true)],
-        body: .raw("{\"name\":\"Alice\"}"),
+        body: .json("{\"name\":\"Alice\"}"),
         auth: .bearer("sk_live_abc123")
     )
     let data = try JSONEncoder().encode(original)
@@ -115,10 +115,10 @@ import Foundation
     #expect(decoded.url == "https://api.example.com/users")
     #expect(decoded.headers.count == 1)
     #expect(decoded.headers[0].key == "Content-Type")
-    if case .raw(let body) = decoded.body {
+    if case .json(let body) = decoded.body {
         #expect(body == "{\"name\":\"Alice\"}")
     } else {
-        Issue.record("Expected .raw body")
+        Issue.record("Expected .json body")
     }
     if case .bearer(let token) = decoded.auth {
         #expect(token == "sk_live_abc123")

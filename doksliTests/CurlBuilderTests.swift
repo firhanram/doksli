@@ -107,7 +107,7 @@ import Foundation
         id: UUID(), name: "Test", method: .POST,
         url: "https://api.example.com",
         params: [], headers: [],
-        body: .raw("{\"name\": \"John\"}"), auth: .none
+        body: .json("{\"name\": \"John\"}"), auth: .none
     )
     let curl = CurlBuilder.build(from: request)
     #expect(curl.contains("-d '{\"name\": \"John\"}'"))
@@ -159,7 +159,7 @@ import Foundation
         id: UUID(), name: "Test", method: .POST,
         url: "https://api.example.com",
         params: [], headers: [],
-        body: .raw(""), auth: .none
+        body: .json(""), auth: .none
     )
     let curl = CurlBuilder.build(from: request)
     #expect(!curl.contains("-d"))
@@ -217,7 +217,7 @@ private func testEnv() -> Environment {
         id: UUID(), name: "Test", method: .POST,
         url: "https://api.example.com",
         params: [], headers: [],
-        body: .raw("{\"url\": \"{{base_url}}\"}"), auth: .none
+        body: .json("{\"url\": \"{{base_url}}\"}"), auth: .none
     )
     let curl = CurlBuilder.build(from: request, environment: testEnv())
     #expect(curl.contains("https://api.prod.com"))

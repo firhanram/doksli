@@ -25,7 +25,7 @@ struct BodyEditor: View {
     private var currentMode: BodyMode {
         switch requestBody {
         case .none: return .none
-        case .raw: return .raw
+        case .json: return .json
         case .formData: return .formData
         case .urlEncoded: return .urlEncoded
         }
@@ -58,7 +58,7 @@ struct BodyEditor: View {
         case .none:
             placeholderView("This request has no body.")
 
-        case .raw:
+        case .json:
             RawBodyEditor(text: rawTextBinding)
 
         case .formData:
@@ -85,7 +85,7 @@ struct BodyEditor: View {
     private func switchMode(to mode: BodyMode) {
         switch mode {
         case .none: requestBody = .none
-        case .raw: requestBody = .raw("")
+        case .json: requestBody = .json("")
         case .formData: requestBody = .formData([])
         case .urlEncoded: requestBody = .urlEncoded([])
         }
@@ -95,8 +95,8 @@ struct BodyEditor: View {
 
     private var rawTextBinding: Binding<String> {
         Binding(
-            get: { if case .raw(let s) = requestBody { return s } else { return "" } },
-            set: { requestBody = .raw($0) }
+            get: { if case .json(let s) = requestBody { return s } else { return "" } },
+            set: { requestBody = .json($0) }
         )
     }
 
@@ -232,12 +232,12 @@ private struct RawBodyEditor: View {
 // MARK: - BodyMode
 
 private enum BodyMode: CaseIterable {
-    case none, raw, formData, urlEncoded
+    case none, json, formData, urlEncoded
 
     var label: String {
         switch self {
         case .none: return "None"
-        case .raw: return "Raw"
+        case .json: return "JSON"
         case .formData: return "Form Data"
         case .urlEncoded: return "URL Encoded"
         }

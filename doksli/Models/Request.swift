@@ -47,7 +47,7 @@ enum HTTPMethod: String, Codable {
 
 enum RequestBody: Codable, Equatable {
     case none
-    case raw(String)
+    case json(String)
     case formData([KVPair])
     case urlEncoded([KVPair])
 
@@ -56,7 +56,8 @@ enum RequestBody: Codable, Equatable {
     }
 
     private enum BodyType: String, Codable {
-        case none, raw, formData, urlEncoded
+        case none, json, formData, urlEncoded
+        case raw // backward compat — decodes old data as .json
     }
 
     init(from decoder: Decoder) throws {
@@ -65,9 +66,9 @@ enum RequestBody: Codable, Equatable {
         switch bodyType {
         case .none:
             self = .none
-        case .raw:
+        case .json, .raw:
             let string = try container.decode(String.self, forKey: .value)
-            self = .raw(string)
+            self = .json(string)
         case .formData:
             let pairs = try container.decode([KVPair].self, forKey: .value)
             self = .formData(pairs)
@@ -82,8 +83,8 @@ enum RequestBody: Codable, Equatable {
         switch self {
         case .none:
             try container.encode(BodyType.none, forKey: .type)
-        case .raw(let string):
-            try container.encode(BodyType.raw, forKey: .type)
+        case .json(let string):
+            try container.encode(BodyType.json, forKey: .type)
             try container.encode(string, forKey: .value)
         case .formData(let pairs):
             try container.encode(BodyType.formData, forKey: .type)

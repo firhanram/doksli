@@ -175,9 +175,17 @@ enum CurlBuilder {
 
         // Body
         switch request.body {
-        case .raw(let text):
+        case .json(let text):
             if !text.isEmpty {
                 let resolved = resolve(text)
+                // Auto-add Content-Type if not already in headers
+                let hasContentType = request.headers.contains { $0.enabled && $0.key.lowercased() == "content-type" }
+                if !hasContentType {
+                    let trimmed = resolved.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if trimmed.hasPrefix("{") || trimmed.hasPrefix("[") {
+                        parts.append("-H 'Content-Type: application/json'")
+                    }
+                }
                 let escaped = resolved.replacingOccurrences(of: "'", with: "'\\''")
                 parts.append("-d '\(escaped)'")
             }

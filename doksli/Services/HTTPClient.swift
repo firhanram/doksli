@@ -67,9 +67,18 @@ struct HTTPClient {
         switch request.body {
         case .none:
             break
-        case .raw(let string):
+        case .json(let string):
             let resolved = VariableResolver.resolve(string, environment: environment)
             urlRequest.httpBody = Data(resolved.utf8)
+            // Auto-set Content-Type if user hasn't set one
+            if urlRequest.value(forHTTPHeaderField: "Content-Type") == nil {
+                let trimmed = resolved.trimmingCharacters(in: .whitespacesAndNewlines)
+                if trimmed.hasPrefix("{") || trimmed.hasPrefix("[") {
+                    urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                } else {
+                    urlRequest.setValue("text/plain", forHTTPHeaderField: "Content-Type")
+                }
+            }
         case .formData(let pairs):
             let boundary = UUID().uuidString
             urlRequest.setValue(

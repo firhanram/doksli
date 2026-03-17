@@ -228,7 +228,7 @@ private func makeResponse(body: Data = Data("{\"ok\":true}".utf8)) -> Response {
     let dir = try makeTempDir()
     defer { try? FileManager.default.removeItem(at: dir) }
 
-    let req = makeRequest(body: .raw("{\"name\":\"Alice\"}"))
+    let req = makeRequest(body: .json("{\"name\":\"Alice\"}"))
     let ws = Workspace(id: UUID(), name: "W", collections: [
         Collection(id: UUID(), name: "C", items: [.request(req)])
     ])
@@ -237,7 +237,7 @@ private func makeResponse(body: Data = Data("{\"ok\":true}".utf8)) -> Response {
     guard case .request(let r) = loaded[0].collections[0].items[0] else {
         Issue.record("Expected .request"); return
     }
-    guard case .raw(let str) = r.body else { Issue.record("Expected .raw body"); return }
+    guard case .json(let str) = r.body else { Issue.record("Expected .json body"); return }
     #expect(str == "{\"name\":\"Alice\"}")
 }
 
