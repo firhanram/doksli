@@ -9,6 +9,12 @@ struct URLBarView: View {
     @State private var varQuery = ""
     @State private var selectedIndex = 0
     @State private var keyMonitor: Any? = nil
+    @State private var showMethodPicker = false
+    @State private var hoveredMethod: HTTPMethod? = nil
+    @State private var methodKeyMonitor: Any? = nil
+    @State private var methodSelectedIndex = 0
+
+    private let allMethods: [HTTPMethod] = [.GET, .POST, .PUT, .PATCH, .DELETE, .OPTIONS, .HEAD]
 
     var body: some View {
         HStack(spacing: AppSpacing.sm) {
@@ -23,18 +29,110 @@ struct URLBarView: View {
     // MARK: - Method picker
 
     private var methodPicker: some View {
-        Menu {
-            ForEach([HTTPMethod.GET, .POST, .PUT, .PATCH, .DELETE, .OPTIONS, .HEAD], id: \.self) { method in
-                Button(method.rawValue) {
-                    request.method = method
-                }
+        Button {
+            if showMethodPicker {
+                closeMethodPicker()
+            } else {
+                openMethodPicker()
             }
         } label: {
-            MethodBadge(method: request.method)
+            HStack(spacing: AppSpacing.xs) {
+                MethodBadge(method: request.method)
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundColor(AppColors.textTertiary)
+            }
         }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
-        .fixedSize()
+        .buttonStyle(.plain)
+        .popover(isPresented: $showMethodPicker, arrowEdge: .bottom) {
+            methodDropdown
+        }
+        .onChange(of: showMethodPicker) { showing in
+            if !showing {
+                closeMethodPicker()
+            }
+        }
+    }
+
+    private var methodDropdown: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(allMethods.enumerated()), id: \.element) { index, method in
+                let isSelected = request.method == method
+                let isHighlighted = methodSelectedIndex == index
+
+                Button {
+                    request.method = method
+                    closeMethodPicker()
+                } label: {
+                    HStack(spacing: AppSpacing.sm) {
+                        Circle()
+                            .fill(methodColor(method))
+                            .frame(width: 8, height: 8)
+                        Text(method.rawValue)
+                            .font(AppFonts.mono)
+                            .fontWeight(isSelected ? .medium : .regular)
+                            .foregroundColor(isHighlighted ? .white : isSelected ? AppColors.brand : AppColors.textPrimary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, AppSpacing.md)
+                    .padding(.vertical, AppSpacing.sm)
+                    .background(isHighlighted ? AppColors.brand : isSelected ? AppColors.brandTint50 : Color.clear)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .onHover { hovering in
+                    if hovering {
+                        methodSelectedIndex = index
+                    }
+                }
+            }
+        }
+        .padding(.vertical, AppSpacing.xs)
+        .frame(width: 120)
+    }
+
+    private func methodColor(_ method: HTTPMethod) -> Color {
+        switch method {
+        case .GET:     return AppColors.methodGet.text
+        case .POST:    return AppColors.methodPost.text
+        case .PUT:     return AppColors.methodPut.text
+        case .PATCH:   return AppColors.methodPatch.text
+        case .DELETE:  return AppColors.methodDelete.text
+        case .OPTIONS: return AppColors.methodOptions.text
+        case .HEAD:    return AppColors.methodHead.text
+        }
+    }
+
+    private func openMethodPicker() {
+        methodSelectedIndex = allMethods.firstIndex(of: request.method) ?? 0
+        showMethodPicker = true
+        methodKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            switch event.keyCode {
+            case 125: // Arrow down
+                methodSelectedIndex = min(methodSelectedIndex + 1, allMethods.count - 1)
+                return nil
+            case 126: // Arrow up
+                methodSelectedIndex = max(methodSelectedIndex - 1, 0)
+                return nil
+            case 36: // Enter
+                request.method = allMethods[methodSelectedIndex]
+                closeMethodPicker()
+                return nil
+            case 53: // Escape
+                closeMethodPicker()
+                return nil
+            default:
+                return event
+            }
+        }
+    }
+
+    private func closeMethodPicker() {
+        showMethodPicker = false
+        if let monitor = methodKeyMonitor {
+            NSEvent.removeMonitor(monitor)
+            methodKeyMonitor = nil
+        }
     }
 
     // MARK: - URL field
