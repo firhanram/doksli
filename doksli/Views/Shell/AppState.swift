@@ -111,6 +111,16 @@ class AppState: ObservableObject {
 
     // MARK: - Workspace mutations
 
+    func createWorkspace() {
+        let newWorkspace = Workspace(
+            id: UUID(),
+            name: "New Workspace",
+            collections: []
+        )
+        workspaces.append(newWorkspace)
+        selectedWorkspace = newWorkspace
+    }
+
     func addNewRequest(method: HTTPMethod = .GET) {
         guard var workspace = selectedWorkspace,
               let wsIndex = workspaces.firstIndex(where: { $0.id == workspace.id }) else { return }

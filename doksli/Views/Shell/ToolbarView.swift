@@ -29,6 +29,8 @@ struct ToolbarView: ToolbarContent {
                     .keyboardShortcut("e", modifiers: .command)
                 Button("") { appState.duplicateSelectedRequest() }
                     .keyboardShortcut("d", modifiers: .command)
+                Button("") { appState.createWorkspace() }
+                    .keyboardShortcut("w", modifiers: [.command, .shift])
             }
             .frame(width: 0, height: 0)
             .opacity(0)

@@ -576,6 +576,9 @@ struct SidebarView: View {
             Text("No workspace selected")
                 .font(AppFonts.body)
                 .foregroundColor(AppColors.textTertiary)
+            Text("Press ⌘⇧W to create one")
+                .font(AppFonts.eyebrow)
+                .foregroundColor(AppColors.textPlaceholder)
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -612,13 +615,7 @@ struct SidebarView: View {
     }
 
     private func createWorkspace() {
-        let newWorkspace = Workspace(
-            id: UUID(),
-            name: "New Workspace",
-            collections: []
-        )
-        appState.workspaces.append(newWorkspace)
-        appState.selectedWorkspace = newWorkspace
+        appState.createWorkspace()
     }
 
     // MARK: - New request button
