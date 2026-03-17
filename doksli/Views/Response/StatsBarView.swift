@@ -5,6 +5,7 @@ import SwiftUI
 struct StatsBarView: View {
     let response: Response
     @EnvironmentObject var appState: AppState
+    @State private var copiedFeedback: String? = nil
 
     var body: some View {
         HStack(spacing: AppSpacing.md) {
@@ -14,12 +15,20 @@ struct StatsBarView: View {
 
             Spacer()
 
+            if let feedback = copiedFeedback {
+                Text(feedback)
+                    .font(AppFonts.eyebrow)
+                    .foregroundColor(AppColors.successText)
+                    .transition(.opacity)
+            }
+
             copyButton
             curlButton
         }
         .padding(.horizontal, AppSpacing.lg)
         .padding(.vertical, AppSpacing.sm)
         .background(AppColors.surface)
+        .animation(.easeInOut(duration: 0.2), value: copiedFeedback)
     }
 
     // MARK: - Status chip
@@ -80,6 +89,7 @@ struct StatsBarView: View {
             if let text = String(data: response.body, encoding: .utf8) {
                 pasteboard.setString(text, forType: .string)
             }
+            showCopiedFeedback("Copied!")
         } label: {
             Image(systemName: "doc.on.doc")
                 .font(AppFonts.body)
@@ -96,6 +106,7 @@ struct StatsBarView: View {
                 let pasteboard = NSPasteboard.general
                 pasteboard.clearContents()
                 pasteboard.setString(curl, forType: .string)
+                showCopiedFeedback("cURL copied!")
             }
         } label: {
             HStack(spacing: AppSpacing.xs) {
@@ -110,6 +121,14 @@ struct StatsBarView: View {
         .help("Copy as cURL")
     }
 
+    // MARK: - Feedback
+
+    private func showCopiedFeedback(_ message: String) {
+        copiedFeedback = message
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            copiedFeedback = nil
+        }
+    }
 }
 
 // MARK: - CurlBuilder
