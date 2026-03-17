@@ -351,6 +351,8 @@ struct SidebarView: View {
 
         appState.workspaces[wsIndex] = workspace
         appState.selectedWorkspace = workspace
+        appState.selectedRequest = newRequest
+        appState.pendingResponse = nil
         expandedFolders.insert(folder.id)
     }
 

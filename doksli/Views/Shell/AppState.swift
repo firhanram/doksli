@@ -145,6 +145,7 @@ class AppState: ObservableObject {
         workspaces[wsIndex] = workspace
         selectedWorkspace = workspace
         selectedRequest = newRequest
+        pendingResponse = nil
     }
 
     func addNewFolder() {
