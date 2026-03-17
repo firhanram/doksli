@@ -41,4 +41,34 @@ struct VariableResolver {
         result += string[lastEnd...]
         return result
     }
+
+    /// Builds a tooltip string listing all `{{var}}` tokens and their resolved values.
+    /// Returns `nil` if no environment is set or no tokens are found.
+    static func tooltipText(for string: String, environment: Environment?) -> String? {
+        guard let env = environment, !string.isEmpty else { return nil }
+
+        let pattern = try! NSRegularExpression(pattern: #"\{\{(\w+)\}\}"#)
+        let fullRange = NSRange(string.startIndex..., in: string)
+        let matches = pattern.matches(in: string, range: fullRange)
+        guard !matches.isEmpty else { return nil }
+
+        let enabled = env.variables.filter { $0.enabled }
+        var seen = Set<String>()
+        var lines: [String] = []
+
+        for match in matches {
+            guard let keyRange = Range(match.range(at: 1), in: string) else { continue }
+            let key = String(string[keyRange])
+            guard !seen.contains(key) else { continue }
+            seen.insert(key)
+
+            if let envVar = enabled.first(where: { $0.key == key }) {
+                lines.append("{{\(key)}} = \(envVar.value)")
+            } else {
+                lines.append("{{\(key)}} = (not set)")
+            }
+        }
+
+        return lines.isEmpty ? nil : lines.joined(separator: "\n")
+    }
 }

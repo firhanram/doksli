@@ -10,19 +10,7 @@ struct ToolbarView: ToolbarContent {
         // MARK: Environment selector
 
         ToolbarItem(placement: .primaryAction) {
-            Menu {
-                Button("No Environment") {
-                    appState.activeEnvironment = nil
-                }
-                Divider()
-                // Environment list populated in Phase 8
-            } label: {
-                HStack(spacing: AppSpacing.xs) {
-                    Image(systemName: "square.stack")
-                    Text(appState.activeEnvironment?.name ?? "No Environment")
-                        .font(AppFonts.body)
-                }
-            }
+            EnvSelectorMenu(appState: appState)
         }
 
         // MARK: Keyboard shortcuts (hidden)
@@ -37,7 +25,7 @@ struct ToolbarView: ToolbarContent {
                     .keyboardShortcut("n", modifiers: [.command, .shift])
                 Button("") { }
                     .keyboardShortcut("k", modifiers: .command)
-                Button("") { }
+                Button("") { appState.showEnvEditor = true }
                     .keyboardShortcut("e", modifiers: .command)
                 Button("") { }
                     .keyboardShortcut("d", modifiers: .command)

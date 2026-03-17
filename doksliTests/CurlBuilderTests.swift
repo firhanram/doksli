@@ -164,3 +164,82 @@ import Foundation
     let curl = CurlBuilder.build(from: request)
     #expect(!curl.contains("-d"))
 }
+
+// MARK: - Variable resolution tests
+
+private func testEnv() -> Environment {
+    Environment(id: UUID(), name: "Test", variables: [
+        EnvVar(id: UUID(), key: "base_url", value: "https://api.prod.com", enabled: true),
+        EnvVar(id: UUID(), key: "token", value: "sk_live_abc", enabled: true),
+        EnvVar(id: UUID(), key: "disabled_var", value: "nope", enabled: false)
+    ])
+}
+
+@Test func variablesResolvedInUrl() {
+    let request = Request(
+        id: UUID(), name: "Test", method: .GET,
+        url: "{{base_url}}/v1/users",
+        params: [], headers: [], body: .none, auth: .none
+    )
+    let curl = CurlBuilder.build(from: request, environment: testEnv())
+    #expect(curl.contains("'https://api.prod.com/v1/users'"))
+    #expect(!curl.contains("{{base_url}}"))
+}
+
+@Test func variablesResolvedInBearerAuth() {
+    let request = Request(
+        id: UUID(), name: "Test", method: .GET,
+        url: "https://api.example.com",
+        params: [], headers: [],
+        body: .none, auth: .bearer("{{token}}")
+    )
+    let curl = CurlBuilder.build(from: request, environment: testEnv())
+    #expect(curl.contains("-H 'Authorization: Bearer sk_live_abc'"))
+    #expect(!curl.contains("{{token}}"))
+}
+
+@Test func variablesResolvedInHeaders() {
+    let request = Request(
+        id: UUID(), name: "Test", method: .GET,
+        url: "https://api.example.com",
+        params: [],
+        headers: [
+            KVPair(id: UUID(), key: "Authorization", value: "Bearer {{token}}", enabled: true)
+        ],
+        body: .none, auth: .none
+    )
+    let curl = CurlBuilder.build(from: request, environment: testEnv())
+    #expect(curl.contains("-H 'Authorization: Bearer sk_live_abc'"))
+}
+
+@Test func variablesResolvedInRawBody() {
+    let request = Request(
+        id: UUID(), name: "Test", method: .POST,
+        url: "https://api.example.com",
+        params: [], headers: [],
+        body: .raw("{\"url\": \"{{base_url}}\"}"), auth: .none
+    )
+    let curl = CurlBuilder.build(from: request, environment: testEnv())
+    #expect(curl.contains("https://api.prod.com"))
+    #expect(!curl.contains("{{base_url}}"))
+}
+
+@Test func disabledVariablesNotResolved() {
+    let request = Request(
+        id: UUID(), name: "Test", method: .GET,
+        url: "{{disabled_var}}/api",
+        params: [], headers: [], body: .none, auth: .none
+    )
+    let curl = CurlBuilder.build(from: request, environment: testEnv())
+    #expect(curl.contains("{{disabled_var}}"))
+}
+
+@Test func noEnvironmentLeavesVariablesAsIs() {
+    let request = Request(
+        id: UUID(), name: "Test", method: .GET,
+        url: "{{base_url}}/api",
+        params: [], headers: [], body: .none, auth: .none
+    )
+    let curl = CurlBuilder.build(from: request)
+    #expect(curl.contains("{{base_url}}"))
+}

@@ -218,19 +218,19 @@ Every task requires a verification checklist written and approved before code st
 ## Phase 8 — Environments
 > Requires phase 3 + phase 6 complete.
 
-- [ ] `EnvEditorSheet`
+- [s] `EnvEditorSheet`
   - Checklist: `docs/checklists/08-env-editor.md`
   - Verify: opens as `.sheet` · toggle/key/value per var · save persists via `StorageService` · cancel discards · add/delete work
 
-- [ ] `EnvSelectorMenu`
+- [s] `EnvSelectorMenu`
   - Checklist: `docs/checklists/08-env-selector.md`
   - Verify: lists all envs · "No environment" at top · selection updates `AppState.activeEnvironment` · active name shown in toolbar
 
-- [ ] Postman environment import
+- [s] Postman environment import
   - Checklist: `docs/checklists/08-postman-import.md`
   - Verify: `NSOpenPanel` filters to `.json` · decodes Postman format · invalid file shows error alert · imported env appears immediately
 
-- [ ] Variable tooltip in URL bar
+- [s] Variable tooltip in URL bar
   - Checklist: `docs/checklists/08-variable-tooltip.md`
   - Verify: hover shows `.help()` with resolved value · unknown var shows `"(not set)"` · no tooltip when no active environment
 

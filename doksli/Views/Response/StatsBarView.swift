@@ -92,7 +92,7 @@ struct StatsBarView: View {
     private var curlButton: some View {
         Button {
             if let request = appState.selectedRequest {
-                let curl = CurlBuilder.build(from: request)
+                let curl = CurlBuilder.build(from: request, environment: appState.activeEnvironment)
                 let pasteboard = NSPasteboard.general
                 pasteboard.clearContents()
                 pasteboard.setString(curl, forType: .string)
@@ -115,7 +115,8 @@ struct StatsBarView: View {
 // MARK: - CurlBuilder
 
 enum CurlBuilder {
-    static func build(from request: Request) -> String {
+    static func build(from request: Request, environment: Environment? = nil) -> String {
+        let resolve: (String) -> String = { VariableResolver.resolve($0, environment: environment) }
         var parts = ["curl"]
 
         // Method
@@ -124,7 +125,7 @@ enum CurlBuilder {
         }
 
         // URL with query params
-        var url = request.url
+        var url = resolve(request.url)
         let enabledParams = request.params.filter { $0.enabled && !$0.key.isEmpty }
         if !enabledParams.isEmpty {
             let query = enabledParams
@@ -136,17 +137,17 @@ enum CurlBuilder {
 
         // Headers
         for header in request.headers where header.enabled && !header.key.isEmpty {
-            parts.append("-H '\(header.key): \(header.value)'")
+            parts.append("-H '\(header.key): \(resolve(header.value))'")
         }
 
         // Auth header
         switch request.auth {
         case .bearer(let token):
-            parts.append("-H 'Authorization: Bearer \(token)'")
+            parts.append("-H 'Authorization: Bearer \(resolve(token))'")
         case .basic(let username, let password):
-            parts.append("-u '\(username):\(password)'")
+            parts.append("-u '\(resolve(username)):\(resolve(password))'")
         case .apiKey(let key, let value):
-            parts.append("-H '\(key): \(value)'")
+            parts.append("-H '\(key): \(resolve(value))'")
         case .none:
             break
         }
@@ -155,7 +156,8 @@ enum CurlBuilder {
         switch request.body {
         case .raw(let text):
             if !text.isEmpty {
-                let escaped = text.replacingOccurrences(of: "'", with: "'\\''")
+                let resolved = resolve(text)
+                let escaped = resolved.replacingOccurrences(of: "'", with: "'\\''")
                 parts.append("-d '\(escaped)'")
             }
         case .formData(let pairs):
