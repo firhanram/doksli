@@ -13,6 +13,7 @@ struct URLBarView: View {
     @State private var hoveredMethod: HTTPMethod? = nil
     @State private var methodKeyMonitor: Any? = nil
     @State private var methodSelectedIndex = 0
+    @FocusState private var isURLFieldFocused: Bool
 
     private let allMethods: [HTTPMethod] = [.GET, .POST, .PUT, .PATCH, .DELETE, .OPTIONS, .HEAD]
 
@@ -173,7 +174,7 @@ struct URLBarView: View {
     private var urlField: some View {
         ZStack(alignment: .leading) {
             // Highlighted overlay — only {{vars}} are colored, rest is transparent
-            if hasVariables {
+            if hasVariables && !isURLFieldFocused {
                 Text(highlightedURL)
                     .font(AppFonts.mono)
                     .lineLimit(1)
@@ -186,6 +187,7 @@ struct URLBarView: View {
                 .textFieldStyle(.plain)
                 .lineLimit(1)
                 .truncationMode(.tail)
+                .focused($isURLFieldFocused)
                 .foregroundColor(AppColors.textPrimary)
                 .onSubmit {
                     if showSuggestions && !filteredVariables.isEmpty {
