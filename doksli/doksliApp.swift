@@ -22,7 +22,27 @@ struct doksliApp: App {
                 .preferredColorScheme(.light)
         }
         .commands {
-            CommandGroup(replacing: .newItem) { }
+            CommandGroup(replacing: .newItem) {
+                Button("New Request") { appState.addNewRequest() }
+                    .keyboardShortcut("n", modifiers: .command)
+                Button("New Folder") { appState.addNewFolder() }
+                    .keyboardShortcut("n", modifiers: [.command, .shift])
+                Divider()
+                Button("New Workspace") { appState.createWorkspace() }
+                    .keyboardShortcut("w", modifiers: [.command, .shift])
+            }
+
+            CommandMenu("Request") {
+                Button("Send Request") { appState.sendCurrentRequest() }
+                    .keyboardShortcut(.return, modifiers: .command)
+                Button("Duplicate Request") { appState.duplicateSelectedRequest() }
+                    .keyboardShortcut("d", modifiers: .command)
+                Divider()
+                Button("Clear Response") { appState.clearResponse() }
+                    .keyboardShortcut("k", modifiers: .command)
+                Button("Environments") { appState.showEnvEditor = true }
+                    .keyboardShortcut("e", modifiers: .command)
+            }
         }
     }
 
