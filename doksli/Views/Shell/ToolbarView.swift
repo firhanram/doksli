@@ -25,36 +25,25 @@ struct ToolbarView: ToolbarContent {
             }
         }
 
-        // MARK: Keyboard shortcuts
+        // MARK: Keyboard shortcuts (hidden)
 
         ToolbarItem(placement: .automatic) {
-            Button("Send Request") { }
-                .keyboardShortcut(.return, modifiers: .command)
-        }
-
-        ToolbarItem(placement: .automatic) {
-            Button("New Request") { }
-                .keyboardShortcut("n", modifiers: .command)
-        }
-
-        ToolbarItem(placement: .automatic) {
-            Button("New Folder") { }
-                .keyboardShortcut("n", modifiers: [.command, .shift])
-        }
-
-        ToolbarItem(placement: .automatic) {
-            Button("Clear Response") { }
-                .keyboardShortcut("k", modifiers: .command)
-        }
-
-        ToolbarItem(placement: .automatic) {
-            Button("Env Editor") { }
-                .keyboardShortcut("e", modifiers: .command)
-        }
-
-        ToolbarItem(placement: .automatic) {
-            Button("Duplicate") { }
-                .keyboardShortcut("d", modifiers: .command)
+            Group {
+                Button("") { }
+                    .keyboardShortcut(.return, modifiers: .command)
+                Button("") { }
+                    .keyboardShortcut("n", modifiers: .command)
+                Button("") { }
+                    .keyboardShortcut("n", modifiers: [.command, .shift])
+                Button("") { }
+                    .keyboardShortcut("k", modifiers: .command)
+                Button("") { }
+                    .keyboardShortcut("e", modifiers: .command)
+                Button("") { }
+                    .keyboardShortcut("d", modifiers: .command)
+            }
+            .frame(width: 0, height: 0)
+            .opacity(0)
         }
     }
 }

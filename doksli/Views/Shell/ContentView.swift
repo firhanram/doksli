@@ -15,6 +15,7 @@ struct ContentView: View {
             detailPlaceholder
         }
         .frame(minWidth: 900, minHeight: 600)
+        .navigationTitle("Doksli")
         .toolbar { ToolbarView(appState: appState) }
     }
 
