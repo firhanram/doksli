@@ -32,6 +32,9 @@ struct RequestView: View {
             }
             previousRequestId = newId
         }
+        .onChange(of: appState.selectedRequest) { _ in
+            syncRequestToWorkspace()
+        }
     }
 
     // MARK: - Request editor

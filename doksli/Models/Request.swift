@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - KVPair
 
-struct KVPair: Codable, Identifiable {
+struct KVPair: Codable, Identifiable, Equatable {
     var id: UUID
     var key: String
     var value: String
@@ -23,7 +23,7 @@ enum HTTPMethod: String, Codable {
 
 // MARK: - RequestBody
 
-enum RequestBody: Codable {
+enum RequestBody: Codable, Equatable {
     case none
     case raw(String)
     case formData([KVPair])
@@ -75,7 +75,7 @@ enum RequestBody: Codable {
 
 // MARK: - Auth
 
-enum Auth: Codable {
+enum Auth: Codable, Equatable {
     case none
     case bearer(String)
     case basic(String, String)
@@ -131,7 +131,7 @@ enum Auth: Codable {
 
 // MARK: - Request
 
-struct Request: Codable, Identifiable {
+struct Request: Codable, Identifiable, Equatable {
     var id: UUID
     var name: String
     var method: HTTPMethod
