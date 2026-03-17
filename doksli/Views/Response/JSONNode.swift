@@ -85,7 +85,7 @@ struct JSONNode: View {
             Text("\"\(string)\"")
                 .font(AppFonts.mono)
                 .foregroundColor(AppColors.jsonString)
-                .lineLimit(1)
+                .fixedSize(horizontal: false, vertical: true)
         } else if let number = value as? NSNumber {
             if isBoolNumber(number) {
                 Text(number.boolValue ? "true" : "false")
