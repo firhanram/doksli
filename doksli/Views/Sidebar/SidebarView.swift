@@ -35,6 +35,7 @@ struct SidebarView: View {
             newRequestButton
         }
         .background(AppColors.surface)
+        .contextMenu { sidebarContextMenu }
         .alert("Rename Request", isPresented: $isRenamingRequest) {
             TextField("Request name", text: $renameText)
             Button("Cancel", role: .cancel) {}
@@ -69,6 +70,35 @@ struct SidebarView: View {
             .padding(.vertical, AppSpacing.sm)
         }
         .contextMenu { workspaceContextMenu }
+    }
+
+    @ViewBuilder
+    private var sidebarContextMenu: some View {
+        Button {
+            createWorkspace()
+        } label: {
+            Label("New Workspace", systemImage: "plus")
+        }
+
+        if appState.selectedWorkspace != nil {
+            Divider()
+
+            Menu {
+                ForEach([HTTPMethod.GET, .POST, .PUT, .PATCH, .DELETE], id: \.self) { method in
+                    Button(method.rawValue) {
+                        addRequestToWorkspace(method: method)
+                    }
+                }
+            } label: {
+                Label("New Request", systemImage: "plus")
+            }
+
+            Button {
+                addFolderToWorkspace()
+            } label: {
+                Label("New Folder", systemImage: "folder.badge.plus")
+            }
+        }
     }
 
     @ViewBuilder
@@ -431,6 +461,16 @@ struct SidebarView: View {
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func createWorkspace() {
+        let newWorkspace = Workspace(
+            id: UUID(),
+            name: "New Workspace",
+            collections: []
+        )
+        appState.workspaces.append(newWorkspace)
+        appState.selectedWorkspace = newWorkspace
     }
 
     // MARK: - New request button
