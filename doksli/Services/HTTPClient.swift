@@ -29,10 +29,10 @@ struct HTTPClient {
               var components = URLComponents(string: resolvedURL) else {
             throw HTTPClientError.invalidURL(resolvedURL)
         }
-        let enabledParams = request.params.filter { $0.enabled }
-        if !enabledParams.isEmpty {
+        let flatParams = flattenPairs(request.params)
+        if !flatParams.isEmpty {
             var queryItems = components.queryItems ?? []
-            queryItems += enabledParams.map { URLQueryItem(name: $0.key, value: $0.value) }
+            queryItems += flatParams.map { URLQueryItem(name: $0.name, value: $0.pair.value) }
             components.queryItems = queryItems
         }
         guard let url = components.url else {

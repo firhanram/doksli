@@ -136,7 +136,7 @@ struct StatsBarView: View {
 enum CurlBuilder {
     static func build(from request: Request, environment: Environment? = nil) -> String {
         let resolve: (String) -> String = { VariableResolver.resolve($0, environment: environment) }
-        var parts = ["curl"]
+        var parts = ["curl", "-g"]
 
         // Method
         if request.method != .GET {
@@ -145,10 +145,10 @@ enum CurlBuilder {
 
         // URL with query params
         var url = resolve(request.url)
-        let enabledParams = request.params.filter { $0.enabled && !$0.key.isEmpty }
-        if !enabledParams.isEmpty {
-            let query = enabledParams
-                .map { "\($0.key)=\($0.value)" }
+        let flatParams = HTTPClient.flattenPairs(request.params)
+        if !flatParams.isEmpty {
+            let query = flatParams
+                .map { "\($0.name)=\($0.pair.value)" }
                 .joined(separator: "&")
             url += (url.contains("?") ? "&" : "?") + query
         }

@@ -141,10 +141,10 @@ struct URLBarView: View {
         Binding(
             get: {
                 let base = request.url
-                let enabledParams = request.params.filter { $0.enabled && !$0.key.isEmpty }
-                guard !enabledParams.isEmpty else { return base }
-                let queryString = enabledParams
-                    .map { "\($0.key)=\($0.value)" }
+                let flatParams = HTTPClient.flattenPairs(request.params)
+                guard !flatParams.isEmpty else { return base }
+                let queryString = flatParams
+                    .map { "\($0.name)=\($0.pair.value)" }
                     .joined(separator: "&")
                 if base.contains("?") {
                     return "\(base)&\(queryString)"
@@ -176,6 +176,7 @@ struct URLBarView: View {
             if hasVariables {
                 Text(highlightedURL)
                     .font(AppFonts.mono)
+                    .lineLimit(1)
                     .allowsHitTesting(false)
             }
 
@@ -183,6 +184,8 @@ struct URLBarView: View {
             TextField("Enter URL...", text: displayURL)
                 .font(AppFonts.mono)
                 .textFieldStyle(.plain)
+                .lineLimit(1)
+                .truncationMode(.tail)
                 .foregroundColor(AppColors.textPrimary)
                 .onSubmit {
                     if showSuggestions && !filteredVariables.isEmpty {

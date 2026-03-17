@@ -11,7 +11,7 @@ import Foundation
         params: [], headers: [], body: .none, auth: .none
     )
     let curl = CurlBuilder.build(from: request)
-    #expect(curl == "curl 'https://api.example.com/users'")
+    #expect(curl == "curl -g 'https://api.example.com/users'")
 }
 
 @Test func postRequestIncludesMethod() {
@@ -163,6 +163,69 @@ import Foundation
     )
     let curl = CurlBuilder.build(from: request)
     #expect(!curl.contains("-d"))
+}
+
+// MARK: - Nested params tests
+
+@Test func nestedObjectParamsInUrl() {
+    let request = Request(
+        id: UUID(), name: "Test", method: .GET,
+        url: "https://api.example.com/search",
+        params: [
+            KVPair(key: "filter", valueType: .object, children: [
+                KVPair(key: "status", value: "active", enabled: true),
+                KVPair(key: "role", value: "admin", enabled: true)
+            ])
+        ],
+        headers: [], body: .none, auth: .none
+    )
+    let curl = CurlBuilder.build(from: request)
+    #expect(curl.contains("filter[status]=active"))
+    #expect(curl.contains("filter[role]=admin"))
+}
+
+@Test func nestedArrayParamsInUrl() {
+    let request = Request(
+        id: UUID(), name: "Test", method: .GET,
+        url: "https://api.example.com/search",
+        params: [
+            KVPair(key: "ids", valueType: .array, children: [
+                KVPair(value: "1", enabled: true),
+                KVPair(value: "2", enabled: true)
+            ])
+        ],
+        headers: [], body: .none, auth: .none
+    )
+    let curl = CurlBuilder.build(from: request)
+    #expect(curl.contains("ids[0]=1"))
+    #expect(curl.contains("ids[1]=2"))
+}
+
+@Test func deeplyNestedParamsInUrl() {
+    let request = Request(
+        id: UUID(), name: "Test", method: .GET,
+        url: "https://api.example.com/search",
+        params: [
+            KVPair(key: "user", valueType: .object, children: [
+                KVPair(key: "address", valueType: .object, children: [
+                    KVPair(key: "city", value: "London", enabled: true)
+                ])
+            ])
+        ],
+        headers: [], body: .none, auth: .none
+    )
+    let curl = CurlBuilder.build(from: request)
+    #expect(curl.contains("user[address][city]=London"))
+}
+
+@Test func globoffFlagPresent() {
+    let request = Request(
+        id: UUID(), name: "Test", method: .GET,
+        url: "https://api.example.com",
+        params: [], headers: [], body: .none, auth: .none
+    )
+    let curl = CurlBuilder.build(from: request)
+    #expect(curl.contains("curl -g"))
 }
 
 // MARK: - Variable resolution tests

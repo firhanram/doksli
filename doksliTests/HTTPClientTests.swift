@@ -151,6 +151,47 @@ private func makeEnv(_ vars: [(key: String, value: String, enabled: Bool)]) -> E
     #expect(urlRequest.value(forHTTPHeaderField: "X-Disabled") == nil)
 }
 
+// MARK: - Nested params tests
+
+@Test func buildRequestNestedObjectParams() throws {
+    let params = [
+        KVPair(key: "filter", valueType: .object, children: [
+            KVPair(key: "status", value: "active", enabled: true)
+        ])
+    ]
+    let request = makeRequest(params: params)
+    let urlRequest = try HTTPClient.buildRequest(from: request, environment: nil)
+    let url = urlRequest.url?.absoluteString ?? ""
+    #expect(url.contains("filter%5Bstatus%5D=active") || url.contains("filter[status]=active"))
+}
+
+@Test func buildRequestNestedArrayParams() throws {
+    let params = [
+        KVPair(key: "ids", valueType: .array, children: [
+            KVPair(value: "1", enabled: true),
+            KVPair(value: "2", enabled: true)
+        ])
+    ]
+    let request = makeRequest(params: params)
+    let urlRequest = try HTTPClient.buildRequest(from: request, environment: nil)
+    let url = urlRequest.url?.absoluteString ?? ""
+    #expect(url.contains("ids%5B0%5D=1") || url.contains("ids[0]=1"))
+    #expect(url.contains("ids%5B1%5D=2") || url.contains("ids[1]=2"))
+}
+
+@Test func buildRequestDisabledNestedParamsSkipped() throws {
+    let params = [
+        KVPair(key: "filter", enabled: false, valueType: .object, children: [
+            KVPair(key: "status", value: "active", enabled: true)
+        ])
+    ]
+    let request = makeRequest(params: params)
+    let urlRequest = try HTTPClient.buildRequest(from: request, environment: nil)
+    let url = urlRequest.url?.absoluteString ?? ""
+    #expect(!url.contains("filter"))
+    #expect(!url.contains("status"))
+}
+
 // MARK: - Integration tests (require network)
 
 @Test(.timeLimit(.minutes(1)))

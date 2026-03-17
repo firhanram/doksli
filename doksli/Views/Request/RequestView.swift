@@ -77,7 +77,9 @@ struct RequestView: View {
                 KVEditor(
                     pairs: requestBinding.params,
                     keyPlaceholder: "Parameter",
-                    valuePlaceholder: "Value"
+                    valuePlaceholder: "Value",
+                    showValueType: true,
+                    showFileOption: false
                 )
             }
 
