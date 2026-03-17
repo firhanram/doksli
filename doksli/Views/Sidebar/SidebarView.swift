@@ -85,7 +85,7 @@ struct SidebarView: View {
             Divider()
 
             Menu {
-                ForEach([HTTPMethod.GET, .POST, .PUT, .PATCH, .DELETE], id: \.self) { method in
+                ForEach([HTTPMethod.GET, .POST, .PUT, .PATCH, .DELETE, .OPTIONS, .HEAD], id: \.self) { method in
                     Button(method.rawValue) {
                         addRequestToWorkspace(method: method)
                     }
@@ -105,7 +105,7 @@ struct SidebarView: View {
     @ViewBuilder
     private var workspaceContextMenu: some View {
         Menu {
-            ForEach([HTTPMethod.GET, .POST, .PUT, .PATCH, .DELETE], id: \.self) { method in
+            ForEach([HTTPMethod.GET, .POST, .PUT, .PATCH, .DELETE, .OPTIONS, .HEAD], id: \.self) { method in
                 Button(method.rawValue) {
                     addRequestToWorkspace(method: method)
                 }
@@ -219,7 +219,7 @@ struct SidebarView: View {
         }
 
         Menu {
-            ForEach([HTTPMethod.GET, .POST, .PUT, .PATCH, .DELETE], id: \.self) { method in
+            ForEach([HTTPMethod.GET, .POST, .PUT, .PATCH, .DELETE, .OPTIONS, .HEAD], id: \.self) { method in
                 Button(method.rawValue) {
                     addRequestInFolder(folder, method: method)
                 }
@@ -246,7 +246,7 @@ struct SidebarView: View {
             }
 
             Menu {
-                ForEach([HTTPMethod.GET, .POST, .PUT, .PATCH, .DELETE], id: \.self) { method in
+                ForEach([HTTPMethod.GET, .POST, .PUT, .PATCH, .DELETE, .OPTIONS, .HEAD], id: \.self) { method in
                     Button(method.rawValue) {
                         addRequestInFolder(folder, method: method)
                     }

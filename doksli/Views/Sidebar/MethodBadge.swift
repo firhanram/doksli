@@ -10,11 +10,10 @@ struct MethodBadge: View {
             .font(AppFonts.eyebrow)
             .tracking(AppFonts.eyebrowTracking)
             .foregroundColor(colors.text)
-            .padding(.horizontal, AppSpacing.xs)
+            .frame(width: 42)
             .padding(.vertical, 2)
             .background(colors.bg)
             .cornerRadius(AppSpacing.radiusBadge)
-            .fixedSize()
     }
 
     private var label: String {
