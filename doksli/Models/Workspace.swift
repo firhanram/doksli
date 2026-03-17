@@ -62,4 +62,5 @@ struct Workspace: Codable, Identifiable {
     var id: UUID
     var name: String
     var collections: [Collection]
+    var activeEnvironmentId: UUID? = nil
 }
