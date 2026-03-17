@@ -402,20 +402,6 @@ struct URLBarView: View {
 
     private func sendRequest() {
         guard canSend else { return }
-        appState.isLoading = true
-        appState.pendingResponse = nil
-        Task {
-            do {
-                let response = try await HTTPClient.send(request, environment: appState.activeEnvironment)
-                await MainActor.run {
-                    appState.pendingResponse = response
-                    appState.isLoading = false
-                }
-            } catch {
-                await MainActor.run {
-                    appState.isLoading = false
-                }
-            }
-        }
+        appState.sendCurrentRequest()
     }
 }

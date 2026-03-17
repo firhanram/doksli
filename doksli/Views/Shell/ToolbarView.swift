@@ -17,17 +17,17 @@ struct ToolbarView: ToolbarContent {
 
         ToolbarItem(placement: .automatic) {
             Group {
-                Button("") { }
+                Button("") { appState.sendCurrentRequest() }
                     .keyboardShortcut(.return, modifiers: .command)
-                Button("") { }
+                Button("") { appState.addNewRequest() }
                     .keyboardShortcut("n", modifiers: .command)
-                Button("") { }
+                Button("") { appState.addNewFolder() }
                     .keyboardShortcut("n", modifiers: [.command, .shift])
-                Button("") { }
+                Button("") { appState.clearResponse() }
                     .keyboardShortcut("k", modifiers: .command)
                 Button("") { appState.showEnvEditor = true }
                     .keyboardShortcut("e", modifiers: .command)
-                Button("") { }
+                Button("") { appState.duplicateSelectedRequest() }
                     .keyboardShortcut("d", modifiers: .command)
             }
             .frame(width: 0, height: 0)

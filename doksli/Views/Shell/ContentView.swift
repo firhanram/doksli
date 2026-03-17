@@ -11,10 +11,9 @@ struct ContentView: View {
                 .navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 300)
         } content: {
             RequestView()
-                .navigationSplitViewColumnWidth(min: 400, ideal: 500)
+                .navigationSplitViewColumnWidth(min: 350, ideal: 400)
         } detail: {
             ResponseView()
-                .navigationSplitViewColumnWidth(min: 400, ideal: 500)
         }
         .frame(minWidth: 1000, minHeight: 600)
         .navigationTitle("Doksli")
@@ -23,7 +22,10 @@ struct ContentView: View {
             EnvEditorSheet()
                 .environmentObject(appState)
         }
-        .task { appState.loadEnvironments() }
+        .task {
+            appState.loadEnvironments()
+            appState.loadHistory()
+        }
     }
 }
 

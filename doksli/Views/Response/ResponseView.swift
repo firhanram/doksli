@@ -28,6 +28,8 @@ struct ResponseView: View {
                 loadingView
             } else if let response = appState.pendingResponse {
                 responseContent(response)
+            } else if let error = appState.lastError {
+                errorView(error)
             } else {
                 emptyState
             }
@@ -93,6 +95,34 @@ struct ResponseView: View {
                 .font(AppFonts.body)
                 .foregroundColor(AppColors.textPlaceholder)
         }
+    }
+
+    // MARK: - Error state
+
+    private func errorView(_ message: String) -> some View {
+        VStack(spacing: AppSpacing.md) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 32))
+                .foregroundColor(AppColors.errorText)
+            Text(message)
+                .font(AppFonts.body)
+                .foregroundColor(AppColors.errorText)
+                .multilineTextAlignment(.center)
+
+            Button {
+                appState.sendCurrentRequest()
+            } label: {
+                Text("Retry")
+                    .font(AppFonts.body)
+                    .foregroundColor(.white)
+                    .padding(.horizontal, AppSpacing.lg)
+                    .padding(.vertical, AppSpacing.sm)
+                    .background(AppColors.brand)
+                    .cornerRadius(AppSpacing.radiusBadge)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(AppSpacing.xl)
     }
 
     // MARK: - Loading

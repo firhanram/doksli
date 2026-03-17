@@ -31,6 +31,8 @@ struct TabBarView<Tab: Hashable>: View {
                 Text(label(tab))
                     .font(AppFonts.body)
                     .foregroundColor(activeTab == tab ? AppColors.brand : AppColors.textTertiary)
+                    .lineLimit(1)
+                    .fixedSize()
                     .padding(.horizontal, AppSpacing.md)
                     .padding(.top, AppSpacing.sm)
 

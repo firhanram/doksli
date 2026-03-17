@@ -32,8 +32,10 @@ class AppState: ObservableObject {
     @Published var environments: [Environment] = []
     @Published var pendingResponse: Response? = nil
     @Published var isLoading: Bool = false
+    @Published var lastError: String? = nil
     @Published var showEnvEditor: Bool = false
     @Published var editingEnvironment: Environment? = nil
+    @Published var historyEntries: [HistoryEntry] = []
 
     // MARK: - Environment helpers
 
@@ -47,5 +49,163 @@ class AppState: ObservableObject {
 
     func saveEnvironments() {
         try? StorageService.saveEnvironments(environments)
+    }
+
+    // MARK: - Send
+
+    func sendCurrentRequest() {
+        guard let request = selectedRequest,
+              !request.url.trimmingCharacters(in: .whitespaces).isEmpty,
+              !isLoading else { return }
+
+        isLoading = true
+        pendingResponse = nil
+        lastError = nil
+
+        Task {
+            do {
+                let response = try await HTTPClient.send(request, environment: activeEnvironment)
+                pendingResponse = response
+                isLoading = false
+                recordHistory(request: request, response: response)
+            } catch let error as URLError {
+                isLoading = false
+                lastError = mapURLError(error)
+            } catch let error as HTTPClientError {
+                isLoading = false
+                switch error {
+                case .invalidURL(let url):
+                    lastError = "Invalid URL: \(url)"
+                case .notHTTPResponse:
+                    lastError = "Server returned an invalid response"
+                }
+            } catch {
+                isLoading = false
+                lastError = error.localizedDescription
+            }
+        }
+    }
+
+    private func mapURLError(_ error: URLError) -> String {
+        switch error.code {
+        case .timedOut:
+            return "Request timed out"
+        case .secureConnectionFailed, .serverCertificateUntrusted, .serverCertificateHasUnknownRoot:
+            return "SSL/TLS connection failed"
+        case .cannotConnectToHost:
+            return "Cannot connect to server"
+        case .notConnectedToInternet:
+            return "No internet connection"
+        case .cannotFindHost:
+            return "Cannot find host"
+        default:
+            return error.localizedDescription
+        }
+    }
+
+    // MARK: - Response actions
+
+    func clearResponse() {
+        pendingResponse = nil
+        lastError = nil
+    }
+
+    // MARK: - Workspace mutations
+
+    func addNewRequest(method: HTTPMethod = .GET) {
+        guard var workspace = selectedWorkspace,
+              let wsIndex = workspaces.firstIndex(where: { $0.id == workspace.id }) else { return }
+
+        let newRequest = Request(
+            id: UUID(), name: "New Request", method: method, url: "",
+            params: [], headers: [], body: .none, auth: .none
+        )
+
+        if workspace.collections.isEmpty {
+            workspace.collections.append(
+                Collection(id: UUID(), name: "Requests", items: [.request(newRequest)])
+            )
+        } else {
+            workspace.collections[0].items.append(.request(newRequest))
+        }
+
+        workspaces[wsIndex] = workspace
+        selectedWorkspace = workspace
+        selectedRequest = newRequest
+    }
+
+    func addNewFolder() {
+        guard var workspace = selectedWorkspace,
+              let wsIndex = workspaces.firstIndex(where: { $0.id == workspace.id }) else { return }
+
+        let newFolder = Folder(id: UUID(), name: "New Folder", items: [])
+
+        if workspace.collections.isEmpty {
+            workspace.collections.append(
+                Collection(id: UUID(), name: "Requests", items: [.folder(newFolder)])
+            )
+        } else {
+            workspace.collections[0].items.append(.folder(newFolder))
+        }
+
+        workspaces[wsIndex] = workspace
+        selectedWorkspace = workspace
+    }
+
+    func duplicateSelectedRequest() {
+        guard let request = selectedRequest,
+              var workspace = selectedWorkspace,
+              let wsIndex = workspaces.firstIndex(where: { $0.id == workspace.id }) else { return }
+
+        var copy = request
+        copy.id = UUID()
+        copy.name = "\(request.name) (Copy)"
+
+        workspace.collections = workspace.collections.map { collection in
+            var col = collection
+            col.items = insertAfter(requestId: request.id, newItem: .request(copy), in: col.items)
+            return col
+        }
+
+        workspaces[wsIndex] = workspace
+        selectedWorkspace = workspace
+    }
+
+    private func insertAfter(requestId: UUID, newItem: Item, in items: [Item]) -> [Item] {
+        var result: [Item] = []
+        for item in items {
+            switch item {
+            case .request(let r):
+                result.append(item)
+                if r.id == requestId {
+                    result.append(newItem)
+                }
+            case .folder(let f):
+                var folder = f
+                folder.items = insertAfter(requestId: requestId, newItem: newItem, in: f.items)
+                result.append(.folder(folder))
+            }
+        }
+        return result
+    }
+
+    // MARK: - History
+
+    func loadHistory() {
+        historyEntries = StorageService.loadHistory()
+    }
+
+    func recordHistory(request: Request, response: Response) {
+        let entry = HistoryEntry(
+            id: UUID(),
+            request: request,
+            response: response,
+            timestamp: Date()
+        )
+        historyEntries.insert(entry, at: 0)
+        if historyEntries.count > 100 {
+            historyEntries = Array(historyEntries.prefix(100))
+        }
+        try? StorageService.appendHistory(entry)
     }
 }

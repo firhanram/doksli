@@ -1,4 +1,12 @@
 import SwiftUI
+import UniformTypeIdentifiers
+
+// MARK: - SidebarTab
+
+enum SidebarTab: String, CaseIterable {
+    case collections = "Collections"
+    case history = "History"
+}
 
 // MARK: - SidebarView
 
@@ -14,6 +22,8 @@ struct SidebarView: View {
     @State private var deletingFolderId: UUID?
     @State private var deletingItemName = ""
     @State private var expandedFolders: Set<UUID> = []
+    @State private var sidebarTab: SidebarTab = .collections
+    @State private var draggedItemId: UUID?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -22,18 +32,32 @@ struct SidebarView: View {
             Divider()
                 .foregroundColor(AppColors.subtle)
 
-            if let workspace = appState.selectedWorkspace {
-                collectionsTree(workspace)
-            } else {
-                emptyState
+            TabBarView(
+                tabs: SidebarTab.allCases,
+                activeTab: $sidebarTab,
+                label: { $0.rawValue }
+            )
+
+            Group {
+                switch sidebarTab {
+                case .collections:
+                    if let workspace = appState.selectedWorkspace {
+                        collectionsTree(workspace)
+                    } else {
+                        emptyState
+                    }
+                case .history:
+                    HistoryView()
+                }
             }
+            .frame(maxHeight: .infinity)
 
-            Spacer(minLength: 0)
+            if sidebarTab == .collections {
+                Divider()
+                    .foregroundColor(AppColors.subtle)
 
-            Divider()
-                .foregroundColor(AppColors.subtle)
-
-            newRequestButton
+                newRequestButton
+            }
         }
         .background(AppColors.surface)
         .contextMenu { sidebarContextMenu }
@@ -62,13 +86,20 @@ struct SidebarView: View {
     // MARK: - Collections tree
 
     private func collectionsTree(_ workspace: Workspace) -> some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 0) {
-                ForEach(workspace.collections.filter { !$0.items.isEmpty }) { collection in
-                    collectionSection(collection)
+        let nonEmpty = workspace.collections.filter { !$0.items.isEmpty }
+        return Group {
+            if nonEmpty.isEmpty {
+                emptyCollectionsState
+            } else {
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 0) {
+                        ForEach(nonEmpty) { collection in
+                            collectionSection(collection)
+                        }
+                    }
+                    .padding(.vertical, AppSpacing.sm)
                 }
             }
-            .padding(.vertical, AppSpacing.sm)
         }
         .contextMenu { workspaceContextMenu }
     }
@@ -87,7 +118,7 @@ struct SidebarView: View {
             Menu {
                 ForEach([HTTPMethod.GET, .POST, .PUT, .PATCH, .DELETE, .OPTIONS, .HEAD], id: \.self) { method in
                     Button(method.rawValue) {
-                        addRequestToWorkspace(method: method)
+                        appState.addNewRequest(method: method)
                     }
                 }
             } label: {
@@ -95,7 +126,7 @@ struct SidebarView: View {
             }
 
             Button {
-                addFolderToWorkspace()
+                appState.addNewFolder()
             } label: {
                 Label("New Folder", systemImage: "folder.badge.plus")
             }
@@ -107,7 +138,7 @@ struct SidebarView: View {
         Menu {
             ForEach([HTTPMethod.GET, .POST, .PUT, .PATCH, .DELETE, .OPTIONS, .HEAD], id: \.self) { method in
                 Button(method.rawValue) {
-                    addRequestToWorkspace(method: method)
+                    appState.addNewRequest(method: method)
                 }
             }
         } label: {
@@ -115,7 +146,7 @@ struct SidebarView: View {
         }
 
         Button {
-            addFolderToWorkspace()
+            appState.addNewFolder()
         } label: {
             Label("New Folder", systemImage: "folder.badge.plus")
         }
@@ -165,6 +196,9 @@ struct SidebarView: View {
                         .contextMenu { folderContextMenu(folder) }
                     }
                 }
+                .onDrop(of: [.text], isTargeted: nil) { providers in
+                    handleDrop(providers: providers, targetFolderId: folder.id)
+                }
                 .padding(.top, AppSpacing.xs)
                 .padding(.leading, AppSpacing.sm)
             )
@@ -180,6 +214,10 @@ struct SidebarView: View {
                     appState.selectedRequest = request
                 }
                 .contextMenu { requestContextMenu(request) }
+                .onDrag {
+                    draggedItemId = request.id
+                    return NSItemProvider(object: request.id.uuidString as NSString)
+                }
                 .padding(.leading, AppSpacing.lg)
             )
         }
@@ -464,7 +502,91 @@ struct SidebarView: View {
         }
     }
 
-    // MARK: - Empty state
+    // MARK: - Drag and drop
+
+    private func handleDrop(providers: [NSItemProvider], targetFolderId: UUID) -> Bool {
+        guard let provider = providers.first else { return false }
+
+        provider.loadItem(forTypeIdentifier: "public.text", options: nil) { data, _ in
+            guard let data = data as? Data,
+                  let uuidString = String(data: data, encoding: .utf8),
+                  let itemId = UUID(uuidString: uuidString) else { return }
+
+            DispatchQueue.main.async {
+                moveItemToFolder(itemId: itemId, targetFolderId: targetFolderId)
+            }
+        }
+        return true
+    }
+
+    private func moveItemToFolder(itemId: UUID, targetFolderId: UUID) {
+        guard var workspace = appState.selectedWorkspace,
+              let wsIndex = appState.workspaces.firstIndex(where: { $0.id == workspace.id }) else { return }
+
+        // Don't drop a folder into itself
+        if itemId == targetFolderId { return }
+
+        // Find and extract the item
+        var extractedItem: Item?
+        workspace.collections = workspace.collections.map { collection in
+            var col = collection
+            col.items = extractItem(itemId: itemId, from: col.items, extracted: &extractedItem)
+            return col
+        }
+
+        guard let item = extractedItem else { return }
+
+        // Insert into target folder
+        workspace.collections = workspace.collections.map { collection in
+            var col = collection
+            col.items = insertIntoFolder(folderId: targetFolderId, item: item, in: col.items)
+            return col
+        }
+
+        appState.workspaces[wsIndex] = workspace
+        appState.selectedWorkspace = workspace
+        expandedFolders.insert(targetFolderId)
+        try? StorageService.saveWorkspaces(appState.workspaces)
+        draggedItemId = nil
+    }
+
+    private func extractItem(itemId: UUID, from items: [Item], extracted: inout Item?) -> [Item] {
+        items.compactMap { item in
+            switch item {
+            case .request(let r):
+                if r.id == itemId {
+                    extracted = item
+                    return nil
+                }
+                return item
+            case .folder(var f):
+                if f.id == itemId {
+                    extracted = item
+                    return nil
+                }
+                f.items = extractItem(itemId: itemId, from: f.items, extracted: &extracted)
+                return .folder(f)
+            }
+        }
+    }
+
+    private func insertIntoFolder(folderId: UUID, item: Item, in items: [Item]) -> [Item] {
+        items.map { existing in
+            switch existing {
+            case .folder(var f):
+                if f.id == folderId {
+                    f.items.append(item)
+                } else {
+                    f.items = insertIntoFolder(folderId: folderId, item: item, in: f.items)
+                }
+                return .folder(f)
+            case .request:
+                return existing
+            }
+        }
+    }
+
+    // MARK: - Empty states
 
     private var emptyState: some View {
         VStack(spacing: AppSpacing.md) {
@@ -475,6 +597,23 @@ struct SidebarView: View {
             Text("No workspace selected")
                 .font(AppFonts.body)
                 .foregroundColor(AppColors.textTertiary)
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var emptyCollectionsState: some View {
+        VStack(spacing: AppSpacing.md) {
+            Spacer()
+            Image(systemName: "doc.text.magnifyingglass")
+                .font(.title)
+                .foregroundColor(AppColors.textFaint)
+            Text("No requests yet")
+                .font(AppFonts.body)
+                .foregroundColor(AppColors.textTertiary)
+            Text("Press ⌘N to create one")
+                .font(AppFonts.eyebrow)
+                .foregroundColor(AppColors.textPlaceholder)
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -511,7 +650,7 @@ struct SidebarView: View {
 
     private var newRequestButton: some View {
         Button {
-            addRequestToWorkspace()
+            appState.addNewRequest()
         } label: {
             HStack(spacing: AppSpacing.sm) {
                 Image(systemName: "plus")
@@ -528,43 +667,4 @@ struct SidebarView: View {
         .help(hasWorkspace ? "Add a new request" : "Select or create a workspace first")
     }
 
-    private func addFolderToWorkspace() {
-        guard var workspace = appState.selectedWorkspace,
-              let wsIndex = appState.workspaces.firstIndex(where: { $0.id == workspace.id }) else { return }
-
-        let newFolder = Folder(id: UUID(), name: "New Folder", items: [])
-
-        if workspace.collections.isEmpty {
-            workspace.collections.append(
-                Collection(id: UUID(), name: "Requests", items: [.folder(newFolder)])
-            )
-        } else {
-            workspace.collections[0].items.append(.folder(newFolder))
-        }
-
-        appState.workspaces[wsIndex] = workspace
-        appState.selectedWorkspace = workspace
-    }
-
-    private func addRequestToWorkspace(method: HTTPMethod = .GET) {
-        guard var workspace = appState.selectedWorkspace,
-              let wsIndex = appState.workspaces.firstIndex(where: { $0.id == workspace.id }) else { return }
-
-        let newRequest = Request(
-            id: UUID(), name: "New Request", method: method, url: "",
-            params: [], headers: [], body: .none, auth: .none
-        )
-
-        if workspace.collections.isEmpty {
-            workspace.collections.append(
-                Collection(id: UUID(), name: "Requests", items: [.request(newRequest)])
-            )
-        } else {
-            workspace.collections[0].items.append(.request(newRequest))
-        }
-
-        appState.workspaces[wsIndex] = workspace
-        appState.selectedWorkspace = workspace
-        appState.selectedRequest = newRequest
-    }
 }

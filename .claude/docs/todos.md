@@ -239,27 +239,27 @@ Every task requires a verification checklist written and approved before code st
 ## Phase 9 — Polish & DX
 > Only after phases 0–8 are stable and manually tested end-to-end.
 
-- [ ] History panel
-  - Checklist: `docs/checklists/09-history-panel.md`
-  - Verify: last 100 entries · grouped by date · click reloads request · method badge + status code visible per row
-
-- [ ] All keyboard shortcuts wired
-  - Checklist: `docs/checklists/09-keyboard-shortcuts.md`
-  - Verify: `⌘↵` sends · `⌘N` new request · `⌘⇧N` new folder · `⌘K` clear · `⌘E` env editor · `⌘D` duplicate · no system conflicts
-
-- [ ] Drag-and-drop sidebar
-  - Checklist: `docs/checklists/09-drag-drop.md`
-  - Verify: rows draggable · reorder within folder · move across folders · drop target highlighted · order persists after restart
-
-- [ ] Empty states
-  - Checklist: `docs/checklists/09-empty-states.md`
-  - Verify: no collections → placeholder · no request selected → placeholder · no response → placeholder · all use `AppColors` + `AppFonts`
-
-- [ ] Error states
+- [s] Error states
   - Checklist: `docs/checklists/09-error-states.md`
   - Verify: network error → message not crash · SSL error → specific message · timeout → message + retry · non-UTF8 body → hex fallback
 
-- [ ] App icon
+- [s] All keyboard shortcuts wired
+  - Checklist: `docs/checklists/09-keyboard-shortcuts.md`
+  - Verify: `⌘↵` sends · `⌘N` new request · `⌘⇧N` new folder · `⌘K` clear · `⌘E` env editor · `⌘D` duplicate · no system conflicts
+
+- [s] History panel
+  - Checklist: `docs/checklists/09-history-panel.md`
+  - Verify: last 100 entries · grouped by date · click reloads request · method badge + status code visible per row
+
+- [s] Empty states
+  - Checklist: `docs/checklists/09-empty-states.md`
+  - Verify: no collections → placeholder · no request selected → placeholder · no response → placeholder · all use `AppColors` + `AppFonts`
+
+- [s] Drag-and-drop sidebar
+  - Checklist: `docs/checklists/09-drag-drop.md`
+  - Verify: rows draggable · move across folders · drop into folder expands it · order persists after restart
+
+- [ ] App icon — deferred (requires external design tooling)
   - Checklist: `docs/checklists/09-app-icon.md`
   - Verify: all sizes in `Assets.xcassets` · no missing size warnings · uses brand color `#D4622E`
 
