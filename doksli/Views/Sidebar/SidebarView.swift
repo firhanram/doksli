@@ -85,7 +85,7 @@ struct SidebarView: View {
 
             Menu {
                 ForEach([HTTPMethod.GET, .POST, .PUT, .PATCH, .DELETE], id: \.self) { method in
-                    Button(method.rawValue) {
+                    Button("\(methodDot(method)) \(method.rawValue)") {
                         addRequestToWorkspace(method: method)
                     }
                 }
@@ -204,7 +204,7 @@ struct SidebarView: View {
 
         Menu {
             ForEach([HTTPMethod.GET, .POST, .PUT, .PATCH, .DELETE], id: \.self) { method in
-                Button(method.rawValue) {
+                Button("\(methodDot(method)) \(method.rawValue)") {
                     addRequestInFolder(folder, method: method)
                 }
             }
@@ -461,6 +461,30 @@ struct SidebarView: View {
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func methodDot(_ method: HTTPMethod) -> String {
+        switch method {
+        case .GET:     return "🟢"
+        case .POST:    return "🔵"
+        case .PUT:     return "🟡"
+        case .PATCH:   return "🟣"
+        case .DELETE:  return "🔴"
+        case .OPTIONS: return "⚪"
+        case .HEAD:    return "⚫"
+        }
+    }
+
+    private func methodColor(_ method: HTTPMethod) -> MethodColor {
+        switch method {
+        case .GET:     return AppColors.methodGet
+        case .POST:    return AppColors.methodPost
+        case .PUT:     return AppColors.methodPut
+        case .DELETE:  return AppColors.methodDelete
+        case .PATCH:   return AppColors.methodPatch
+        case .OPTIONS: return AppColors.methodOptions
+        case .HEAD:    return AppColors.methodHead
+        }
     }
 
     private func createWorkspace() {
