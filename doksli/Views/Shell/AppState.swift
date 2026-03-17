@@ -7,8 +7,12 @@ class AppState: ObservableObject {
     @Published var workspaces: [Workspace] = []
     @Published var selectedWorkspace: Workspace? = nil {
         didSet {
-            // Restore per-workspace environment when switching workspaces
+            // Reset state when switching workspaces
             if oldValue?.id != selectedWorkspace?.id {
+                selectedRequest = nil
+                pendingResponse = nil
+                lastError = nil
+
                 if let envId = selectedWorkspace?.activeEnvironmentId {
                     activeEnvironment = environments.first { $0.id == envId }
                 } else {
