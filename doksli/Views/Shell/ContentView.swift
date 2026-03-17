@@ -12,25 +12,11 @@ struct ContentView: View {
         } content: {
             RequestView()
         } detail: {
-            detailPlaceholder
+            ResponseView()
         }
         .frame(minWidth: 900, minHeight: 600)
         .navigationTitle("Doksli")
         .toolbar { ToolbarView(appState: appState) }
-    }
-
-    // MARK: Placeholder — replaced in Phase 7
-
-    private var detailPlaceholder: some View {
-        VStack {
-            Spacer()
-            Text("Response Panel")
-                .font(AppFonts.title)
-                .foregroundColor(AppColors.textTertiary)
-            Spacer()
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(AppColors.surface)
     }
 }
 

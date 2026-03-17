@@ -193,23 +193,23 @@ Every task requires a verification checklist written and approved before code st
 ## Phase 7 — Response viewer
 > Stats bar + raw first. JSON tree is the complex part.
 
-- [ ] Stats bar
+- [s] Stats bar
   - Checklist: `docs/checklists/07-stats-bar.md`
   - Verify: 2xx green · 3xx amber · 4xx/5xx red · ms rounded to integer · KB = `sizeBytes / 1000` to 1 decimal
 
-- [ ] Response `TabBarView`
+- [s] Response `TabBarView`
   - Checklist: `docs/checklists/07-response-tabs.md`
-  - Verify: reuses same `TabBarView` from phase 6 · Body/Headers/Cookies/Raw/Preview present
+  - Verify: reuses same `TabBarView` from phase 6 · Body/Headers/Raw present
 
-- [ ] `JSONTreeView` recursive viewer
+- [s] `JSONTreeView` recursive viewer
   - Checklist: `docs/checklists/07-json-tree.md`
   - Verify: objects + arrays expand/collapse · syntax colors match `design-system.md` JSON colors · click copies value · 5+ nesting levels do not crash
 
-- [ ] Response headers list
+- [s] Response headers list
   - Checklist: `docs/checklists/07-response-headers.md`
   - Verify: all headers shown · click copies value · read-only, no edit affordance
 
-- [ ] Raw body view
+- [s] Raw body view
   - Checklist: `docs/checklists/07-raw-body.md`
   - Verify: `AppFonts.mono` · text selectable · copy-all works · non-UTF8 shows hex fallback, does not crash
 
