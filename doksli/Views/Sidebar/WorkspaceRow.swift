@@ -14,7 +14,7 @@ struct WorkspaceRow: View {
 
             actionsMenu
         }
-        .padding(.horizontal, AppSpacing.lg)
+        .padding(.horizontal, AppSpacing.sm)
         .padding(.vertical, AppSpacing.md)
         .alert("Rename Workspace", isPresented: $isRenaming) {
             TextField("Workspace name", text: $renameText)

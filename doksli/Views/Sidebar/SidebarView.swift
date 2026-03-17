@@ -13,6 +13,7 @@ struct SidebarView: View {
     @State private var deletingRequestId: UUID?
     @State private var deletingFolderId: UUID?
     @State private var deletingItemName = ""
+    @State private var expandedFolders: Set<UUID> = []
 
     var body: some View {
         VStack(spacing: 0) {
@@ -121,7 +122,7 @@ struct SidebarView: View {
     }
 
     private func collectionSection(_ collection: Collection) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: 2) {
             Text(collection.name.uppercased())
                 .font(AppFonts.eyebrow)
                 .tracking(AppFonts.eyebrowTracking)
@@ -137,35 +138,50 @@ struct SidebarView: View {
 
     // MARK: - Recursive item rendering
 
-    @ViewBuilder
-    private func itemRow(_ item: Item) -> some View {
+    private func itemRow(_ item: Item) -> AnyView {
         switch item {
         case .folder(let folder):
-            DisclosureGroup {
-                ForEach(Array(folder.items.enumerated()), id: \.offset) { _, child in
-                    itemRow(child)
+            let isExpanded = Binding<Bool>(
+                get: { expandedFolders.contains(folder.id) },
+                set: { newValue in
+                    if newValue { expandedFolders.insert(folder.id) }
+                    else { expandedFolders.remove(folder.id) }
                 }
-            } label: {
-                HStack(spacing: AppSpacing.xs) {
-                    FolderRow(folder: folder)
-                    Spacer()
-                    folderActionsMenu(folder)
+            )
+            return AnyView(
+                VStack(spacing: 0) {
+                    DisclosureGroup(isExpanded: isExpanded) {
+                        VStack(spacing: 2) {
+                            ForEach(Array(folder.items.enumerated()), id: \.offset) { _, child in
+                                itemRow(child)
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: AppSpacing.xs) {
+                            FolderRow(folder: folder)
+                            Spacer()
+                            folderActionsMenu(folder)
+                        }
+                        .contextMenu { folderContextMenu(folder) }
+                    }
                 }
-                .contextMenu { folderContextMenu(folder) }
-            }
-            .padding(.leading, AppSpacing.sm)
+                .padding(.top, AppSpacing.xs)
+                .padding(.leading, AppSpacing.sm)
+            )
 
         case .request(let request):
-            RequestRow(
-                request: request,
-                isActive: appState.selectedRequest?.id == request.id
+            return AnyView(
+                RequestRow(
+                    request: request,
+                    isActive: appState.selectedRequest?.id == request.id
+                )
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    appState.selectedRequest = request
+                }
+                .contextMenu { requestContextMenu(request) }
+                .padding(.leading, AppSpacing.lg)
             )
-            .contentShape(Rectangle())
-            .onTapGesture {
-                appState.selectedRequest = request
-            }
-            .contextMenu { requestContextMenu(request) }
-            .padding(.leading, AppSpacing.sm)
         }
     }
 
@@ -318,6 +334,7 @@ struct SidebarView: View {
 
         appState.workspaces[wsIndex] = workspace
         appState.selectedWorkspace = workspace
+        expandedFolders.insert(folder.id)
     }
 
     private func renameRequest(_ request: Request) {
