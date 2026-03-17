@@ -148,10 +148,44 @@ struct HTTPClient {
         let crlf = "\r\n"
         for pair in pairs {
             body += Data("--\(boundary)\(crlf)".utf8)
-            body += Data("Content-Disposition: form-data; name=\"\(pair.key)\"\(crlf)\(crlf)".utf8)
-            body += Data("\(pair.value)\(crlf)".utf8)
+
+            if pair.valueType == .file {
+                let fileURL = URL(fileURLWithPath: pair.value)
+                let filename = fileURL.lastPathComponent
+                let mimeType = mimeTypeForPath(pair.value)
+                body += Data("Content-Disposition: form-data; name=\"\(pair.key)\"; filename=\"\(filename)\"\(crlf)".utf8)
+                body += Data("Content-Type: \(mimeType)\(crlf)\(crlf)".utf8)
+                if let fileData = try? Data(contentsOf: fileURL) {
+                    body += fileData
+                }
+            } else {
+                body += Data("Content-Disposition: form-data; name=\"\(pair.key)\"\(crlf)\(crlf)".utf8)
+                body += Data("\(pair.value)".utf8)
+            }
+
+            body += Data(crlf.utf8)
         }
         body += Data("--\(boundary)--\(crlf)".utf8)
         return body
+    }
+
+    private static func mimeTypeForPath(_ path: String) -> String {
+        let ext = (path as NSString).pathExtension.lowercased()
+        switch ext {
+        case "json": return "application/json"
+        case "xml": return "application/xml"
+        case "pdf": return "application/pdf"
+        case "zip": return "application/zip"
+        case "png": return "image/png"
+        case "jpg", "jpeg": return "image/jpeg"
+        case "gif": return "image/gif"
+        case "svg": return "image/svg+xml"
+        case "txt": return "text/plain"
+        case "html", "htm": return "text/html"
+        case "css": return "text/css"
+        case "js": return "application/javascript"
+        case "csv": return "text/csv"
+        default: return "application/octet-stream"
+        }
     }
 }

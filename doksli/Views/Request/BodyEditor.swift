@@ -62,7 +62,7 @@ struct BodyEditor: View {
             RawBodyEditor(text: rawTextBinding)
 
         case .formData:
-            KVEditor(pairs: formDataBinding)
+            KVEditor(pairs: formDataBinding, showValueType: true)
 
         case .urlEncoded:
             KVEditor(pairs: urlEncodedBinding)

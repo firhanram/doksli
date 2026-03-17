@@ -7,6 +7,20 @@ struct KVPair: Codable, Identifiable, Equatable {
     var key: String
     var value: String
     var enabled: Bool
+    var valueType: ValueType
+
+    init(id: UUID = UUID(), key: String = "", value: String = "", enabled: Bool = true, valueType: ValueType = .text) {
+        self.id = id
+        self.key = key
+        self.value = value
+        self.enabled = enabled
+        self.valueType = valueType
+    }
+
+    enum ValueType: String, Codable, Equatable {
+        case text
+        case file
+    }
 }
 
 // MARK: - HTTPMethod
