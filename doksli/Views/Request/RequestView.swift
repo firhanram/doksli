@@ -41,7 +41,12 @@ struct RequestView: View {
 
     private var requestBinding: Binding<Request> {
         Binding(
-            get: { appState.selectedRequest! },
+            get: {
+                appState.selectedRequest ?? Request(
+                    id: UUID(), name: "", method: .GET, url: "",
+                    params: [], headers: [], body: .none, auth: .none
+                )
+            },
             set: { appState.selectedRequest = $0 }
         )
     }
