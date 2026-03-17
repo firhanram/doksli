@@ -7,11 +7,31 @@ struct KVEditor: View {
     var keyPlaceholder: String = "Key"
     var valuePlaceholder: String = "Value"
     var showValueType: Bool = false
+    var showFileOption: Bool = true
+    var depth: Int = 0
+    var parentValueType: KVPair.ValueType? = nil
 
     var body: some View {
         VStack(spacing: 0) {
-            ForEach($pairs) { $pair in
-                kvRow(pair: $pair)
+            ForEach(Array(pairs.enumerated()), id: \.element.id) { index, pair in
+                let pairBinding = $pairs[safeIndex(for: pair)]
+
+                kvRow(pair: pairBinding, index: index)
+
+                // Render children inline for container types
+                if pair.isContainer, pair.children != nil {
+                    KVEditor(
+                        pairs: childrenBinding(for: pairBinding),
+                        keyPlaceholder: pair.valueType == .array ? "#" : "Key",
+                        valuePlaceholder: "Value",
+                        showValueType: true,
+                        showFileOption: showFileOption,
+                        depth: depth + 1,
+                        parentValueType: pair.valueType
+                    )
+                    .opacity(pair.enabled ? 1 : 0.5)
+                }
+
                 Divider()
                     .foregroundColor(AppColors.subtle)
             }
@@ -20,25 +40,50 @@ struct KVEditor: View {
         }
     }
 
-    private func kvRow(pair: Binding<KVPair>) -> some View {
+    // MARK: - Safe index lookup
+
+    private func safeIndex(for pair: KVPair) -> Int {
+        pairs.firstIndex(where: { $0.id == pair.id }) ?? 0
+    }
+
+    // MARK: - Row
+
+    private func kvRow(pair: Binding<KVPair>, index: Int) -> some View {
         HStack(spacing: AppSpacing.sm) {
             Toggle("", isOn: pair.enabled)
                 .toggleStyle(.checkbox)
                 .labelsHidden()
 
-            TextField(keyPlaceholder, text: pair.key)
-                .font(AppFonts.mono)
-                .textFieldStyle(.plain)
-                .padding(.horizontal, AppSpacing.xs)
-                .padding(.vertical, AppSpacing.xs)
-                .background(AppColors.surfacePlus)
-                .cornerRadius(AppSpacing.radiusInput)
+            // Array children: show read-only index instead of editable key
+            if parentValueType == .array {
+                Text("\(index)")
+                    .font(AppFonts.mono)
+                    .foregroundColor(AppColors.textTertiary)
+                    .frame(width: 30, alignment: .center)
+                    .padding(.vertical, AppSpacing.xs)
+                    .background(AppColors.surfacePlus)
+                    .cornerRadius(AppSpacing.radiusInput)
+            } else {
+                TextField(keyPlaceholder, text: pair.key)
+                    .font(AppFonts.mono)
+                    .textFieldStyle(.plain)
+                    .padding(.horizontal, AppSpacing.xs)
+                    .padding(.vertical, AppSpacing.xs)
+                    .background(AppColors.surfacePlus)
+                    .cornerRadius(AppSpacing.radiusInput)
+            }
 
             if showValueType {
                 valueTypeMenu(pair: pair)
             }
 
-            if pair.wrappedValue.valueType == .file {
+            if pair.wrappedValue.isContainer {
+                // Container: show item count instead of value field
+                Text("\(pair.wrappedValue.children?.count ?? 0) items")
+                    .font(AppFonts.eyebrow)
+                    .foregroundColor(AppColors.textPlaceholder)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else if pair.wrappedValue.valueType == .file {
                 fileValueField(pair: pair)
             } else {
                 TextField(valuePlaceholder, text: pair.value)
@@ -59,7 +104,8 @@ struct KVEditor: View {
             }
             .buttonStyle(.plain)
         }
-        .padding(.horizontal, AppSpacing.lg)
+        .padding(.leading, AppSpacing.lg + CGFloat(depth) * AppSpacing.lg)
+        .padding(.trailing, AppSpacing.lg)
         .padding(.vertical, AppSpacing.xs)
     }
 
@@ -69,21 +115,50 @@ struct KVEditor: View {
         Menu {
             Button {
                 pair.wrappedValue.valueType = .text
+                pair.wrappedValue.children = nil
                 pair.wrappedValue.value = ""
             } label: {
                 Label("Text", systemImage: "text.cursor")
             }
-            Button {
-                pair.wrappedValue.valueType = .file
-                pair.wrappedValue.value = ""
-            } label: {
-                Label("File", systemImage: "doc")
+
+            if showFileOption {
+                Button {
+                    pair.wrappedValue.valueType = .file
+                    pair.wrappedValue.children = nil
+                    pair.wrappedValue.value = ""
+                } label: {
+                    Label("File", systemImage: "doc")
+                }
+            }
+
+            if depth < KVPair.maxNestingDepth - 1 {
+                Divider()
+
+                Button {
+                    pair.wrappedValue.valueType = .array
+                    pair.wrappedValue.value = ""
+                    if pair.wrappedValue.children == nil {
+                        pair.wrappedValue.children = []
+                    }
+                } label: {
+                    Label("Array", systemImage: "list.number")
+                }
+
+                Button {
+                    pair.wrappedValue.valueType = .object
+                    pair.wrappedValue.value = ""
+                    if pair.wrappedValue.children == nil {
+                        pair.wrappedValue.children = []
+                    }
+                } label: {
+                    Label("Object", systemImage: "curlybraces")
+                }
             }
         } label: {
             HStack(spacing: AppSpacing.xs) {
-                Image(systemName: pair.wrappedValue.valueType == .file ? "doc" : "text.cursor")
+                Image(systemName: iconForType(pair.wrappedValue.valueType))
                     .font(.caption)
-                Text(pair.wrappedValue.valueType == .file ? "File" : "Text")
+                Text(labelForType(pair.wrappedValue.valueType))
                     .font(AppFonts.eyebrow)
                 Image(systemName: "chevron.down")
                     .font(.system(size: 8))
@@ -96,6 +171,24 @@ struct KVEditor: View {
         }
         .menuStyle(.borderlessButton)
         .fixedSize()
+    }
+
+    private func iconForType(_ type: KVPair.ValueType) -> String {
+        switch type {
+        case .text: return "text.cursor"
+        case .file: return "doc"
+        case .array: return "list.number"
+        case .object: return "curlybraces"
+        }
+    }
+
+    private func labelForType(_ type: KVPair.ValueType) -> String {
+        switch type {
+        case .text: return "Text"
+        case .file: return "File"
+        case .array: return "Array"
+        case .object: return "Object"
+        }
     }
 
     // MARK: - File value field
@@ -152,6 +245,15 @@ struct KVEditor: View {
         (path as NSString).lastPathComponent
     }
 
+    // MARK: - Children binding
+
+    private func childrenBinding(for pair: Binding<KVPair>) -> Binding<[KVPair]> {
+        Binding(
+            get: { pair.wrappedValue.children ?? [] },
+            set: { pair.wrappedValue.children = $0 }
+        )
+    }
+
     // MARK: - Add button
 
     private var addButton: some View {
@@ -164,7 +266,7 @@ struct KVEditor: View {
                     .font(AppFonts.body)
             }
             .foregroundColor(AppColors.textTertiary)
-            .padding(.horizontal, AppSpacing.lg)
+            .padding(.leading, AppSpacing.lg + CGFloat(depth) * AppSpacing.lg)
             .padding(.vertical, AppSpacing.sm)
         }
         .buttonStyle(.plain)

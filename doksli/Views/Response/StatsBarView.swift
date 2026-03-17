@@ -162,7 +162,9 @@ enum CurlBuilder {
         // Auth header
         switch request.auth {
         case .bearer(let token):
-            parts.append("-H 'Authorization: Bearer \(resolve(token))'")
+            let resolved = resolve(token)
+            let cleanToken = resolved.hasPrefix("Bearer ") ? String(resolved.dropFirst(7)) : resolved
+            parts.append("-H 'Authorization: Bearer \(cleanToken)'")
         case .basic(let username, let password):
             parts.append("-u '\(resolve(username)):\(resolve(password))'")
         case .apiKey(let key, let value):
@@ -180,14 +182,19 @@ enum CurlBuilder {
                 parts.append("-d '\(escaped)'")
             }
         case .formData(let pairs):
-            for pair in pairs where pair.enabled && !pair.key.isEmpty {
-                parts.append("-F '\(pair.key)=\(pair.value)'")
+            let flattened = HTTPClient.flattenPairs(pairs)
+            for item in flattened where !item.name.isEmpty {
+                if item.pair.valueType == .file {
+                    parts.append("-F '\(item.name)=@\(item.pair.value)'")
+                } else {
+                    parts.append("-F '\(item.name)=\(item.pair.value)'")
+                }
             }
         case .urlEncoded(let pairs):
-            let enabledPairs = pairs.filter { $0.enabled && !$0.key.isEmpty }
-            if !enabledPairs.isEmpty {
-                let body = enabledPairs
-                    .map { "\($0.key)=\($0.value)" }
+            let flattened = HTTPClient.flattenPairs(pairs)
+            if !flattened.isEmpty {
+                let body = flattened
+                    .map { "\($0.name)=\($0.pair.value)" }
                     .joined(separator: "&")
                 parts.append("-d '\(body)'")
             }

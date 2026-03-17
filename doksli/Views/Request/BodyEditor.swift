@@ -14,9 +14,9 @@ struct BodyEditor: View {
             Divider()
                 .foregroundColor(AppColors.subtle)
 
-            bodyContent
-
-            Spacer(minLength: 0)
+            ScrollView {
+                bodyContent
+            }
         }
     }
 
@@ -65,7 +65,7 @@ struct BodyEditor: View {
             KVEditor(pairs: formDataBinding, showValueType: true)
 
         case .urlEncoded:
-            KVEditor(pairs: urlEncodedBinding)
+            KVEditor(pairs: urlEncodedBinding, showValueType: true, showFileOption: false)
         }
     }
 

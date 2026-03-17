@@ -53,7 +53,8 @@ struct HTTPClient {
         case .none:
             break
         case .bearer(let token):
-            urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            let cleanToken = token.hasPrefix("Bearer ") ? String(token.dropFirst(7)) : token
+            urlRequest.setValue("Bearer \(cleanToken)", forHTTPHeaderField: "Authorization")
         case .basic(let username, let password):
             let credentials = "\(username):\(password)"
             let encoded = Data(credentials.utf8).base64EncodedString()
@@ -75,14 +76,13 @@ struct HTTPClient {
                 "multipart/form-data; boundary=\(boundary)",
                 forHTTPHeaderField: "Content-Type"
             )
-            urlRequest.httpBody = buildMultipartBody(pairs: pairs.filter { $0.enabled },
-                                                     boundary: boundary)
+            urlRequest.httpBody = buildMultipartBody(pairs: pairs, boundary: boundary)
         case .urlEncoded(let pairs):
             urlRequest.setValue(
                 "application/x-www-form-urlencoded",
                 forHTTPHeaderField: "Content-Type"
             )
-            urlRequest.httpBody = buildURLEncodedBody(pairs: pairs.filter { $0.enabled })
+            urlRequest.httpBody = buildURLEncodedBody(pairs: pairs)
         }
 
         return urlRequest
@@ -134,10 +134,50 @@ struct HTTPClient {
 
     // MARK: Body encoding helpers
 
+    /// Recursively flattens nested KVPairs into `(bracketNotatedName, leafPair)` tuples.
+    /// Skips disabled pairs at any level.
+    static func flattenPairs(
+        _ pairs: [KVPair],
+        prefix: String = ""
+    ) -> [(name: String, pair: KVPair)] {
+        var result: [(name: String, pair: KVPair)] = []
+        for (index, pair) in pairs.enumerated() {
+            guard pair.enabled else { continue }
+
+            let name: String
+            if prefix.isEmpty {
+                name = pair.key
+            } else {
+                // For array children, use index as key
+                let segment = pair.key.isEmpty ? "\(index)" : pair.key
+                name = "\(prefix)[\(segment)]"
+            }
+
+            if pair.isContainer, let children = pair.children {
+                let childPairs: [KVPair]
+                if pair.valueType == .array {
+                    // For arrays, force index-based keys
+                    childPairs = children.enumerated().map { idx, child in
+                        var c = child
+                        c.key = "\(idx)"
+                        return c
+                    }
+                } else {
+                    childPairs = children
+                }
+                result += flattenPairs(childPairs, prefix: name)
+            } else {
+                result.append((name: name, pair: pair))
+            }
+        }
+        return result
+    }
+
     private static func buildURLEncodedBody(pairs: [KVPair]) -> Data {
-        let encoded = pairs.map { pair in
-            let key = pair.key.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? pair.key
-            let value = pair.value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? pair.value
+        let flattened = flattenPairs(pairs)
+        let encoded = flattened.map { item in
+            let key = item.name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? item.name
+            let value = item.pair.value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? item.pair.value
             return "\(key)=\(value)"
         }.joined(separator: "&")
         return Data(encoded.utf8)
@@ -146,21 +186,22 @@ struct HTTPClient {
     private static func buildMultipartBody(pairs: [KVPair], boundary: String) -> Data {
         var body = Data()
         let crlf = "\r\n"
-        for pair in pairs {
+        let flattened = flattenPairs(pairs)
+        for item in flattened {
             body += Data("--\(boundary)\(crlf)".utf8)
 
-            if pair.valueType == .file {
-                let fileURL = URL(fileURLWithPath: pair.value)
+            if item.pair.valueType == .file {
+                let fileURL = URL(fileURLWithPath: item.pair.value)
                 let filename = fileURL.lastPathComponent
-                let mimeType = mimeTypeForPath(pair.value)
-                body += Data("Content-Disposition: form-data; name=\"\(pair.key)\"; filename=\"\(filename)\"\(crlf)".utf8)
+                let mimeType = mimeTypeForPath(item.pair.value)
+                body += Data("Content-Disposition: form-data; name=\"\(item.name)\"; filename=\"\(filename)\"\(crlf)".utf8)
                 body += Data("Content-Type: \(mimeType)\(crlf)\(crlf)".utf8)
                 if let fileData = try? Data(contentsOf: fileURL) {
                     body += fileData
                 }
             } else {
-                body += Data("Content-Disposition: form-data; name=\"\(pair.key)\"\(crlf)\(crlf)".utf8)
-                body += Data("\(pair.value)".utf8)
+                body += Data("Content-Disposition: form-data; name=\"\(item.name)\"\(crlf)\(crlf)".utf8)
+                body += Data("\(item.pair.value)".utf8)
             }
 
             body += Data(crlf.utf8)

@@ -8,18 +8,26 @@ struct KVPair: Codable, Identifiable, Equatable {
     var value: String
     var enabled: Bool
     var valueType: ValueType
+    var children: [KVPair]?
 
-    init(id: UUID = UUID(), key: String = "", value: String = "", enabled: Bool = true, valueType: ValueType = .text) {
+    static let maxNestingDepth = 4
+
+    var isContainer: Bool { valueType == .array || valueType == .object }
+
+    init(id: UUID = UUID(), key: String = "", value: String = "", enabled: Bool = true, valueType: ValueType = .text, children: [KVPair]? = nil) {
         self.id = id
         self.key = key
         self.value = value
         self.enabled = enabled
         self.valueType = valueType
+        self.children = children
     }
 
     enum ValueType: String, Codable, Equatable {
         case text
         case file
+        case array
+        case object
     }
 }
 
