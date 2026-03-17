@@ -13,6 +13,11 @@ struct doksliApp: App {
 
     init() {
         setupStorageDirectory()
+
+        // Disable smart quotes/dashes so JSON and code stay valid
+        UserDefaults.standard.set(false, forKey: "NSAutomaticQuoteSubstitutionEnabled")
+        UserDefaults.standard.set(false, forKey: "NSAutomaticDashSubstitutionEnabled")
+        UserDefaults.standard.set(false, forKey: "NSAutomaticTextReplacementEnabled")
     }
 
     var body: some Scene {

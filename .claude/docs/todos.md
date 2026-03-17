@@ -188,6 +188,10 @@ Every task requires a verification checklist written and approved before code st
   - Checklist: `docs/checklists/06-variable-highlighting.md`
   - Verify: `{{var}}` in `#C96A2A` · non-var text in default color · updates live as user types · no crash on partial `{{` input
 
+- [s] Raw body editor — SwiftUI TextEditor + JSONValidator
+  - Checklist: `docs/checklists/06-json-editor.md`
+  - Verify: TextEditor with mono font · validation indicator green/red · format button formats valid JSON · format disabled when invalid · error banner below editor · debounce 300ms
+
 ---
 
 ## Phase 7 — Response viewer

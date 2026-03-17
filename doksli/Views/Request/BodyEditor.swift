@@ -59,14 +59,7 @@ struct BodyEditor: View {
             placeholderView("This request has no body.")
 
         case .raw:
-            TextEditor(text: rawTextBinding)
-                .font(AppFonts.mono)
-                .scrollContentBackground(.hidden)
-                .padding(AppSpacing.sm)
-                .background(AppColors.surfacePlus)
-                .cornerRadius(AppSpacing.radiusInput)
-                .padding(.horizontal, AppSpacing.lg)
-                .padding(.vertical, AppSpacing.md)
+            RawBodyEditor(text: rawTextBinding)
 
         case .formData:
             KVEditor(pairs: formDataBinding)
@@ -119,6 +112,120 @@ struct BodyEditor: View {
             get: { if case .urlEncoded(let p) = requestBody { return p } else { return [] } },
             set: { requestBody = .urlEncoded($0) }
         )
+    }
+}
+
+// MARK: - RawBodyEditor
+
+private struct RawBodyEditor: View {
+    @Binding var text: String
+    @State private var validationResult = JSONValidator.ValidationResult(
+        isValid: true, errorMessage: nil, errorPosition: nil
+    )
+    @State private var validationWorkItem: DispatchWorkItem?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            editorToolbar
+
+            TextEditor(text: $text)
+                .font(AppFonts.mono)
+                .scrollContentBackground(.hidden)
+                .background(AppColors.surfacePlus)
+                .cornerRadius(AppSpacing.radiusInput)
+                .padding(.horizontal, AppSpacing.lg)
+                .padding(.vertical, AppSpacing.sm)
+                .onChange(of: text) { _ in validateDebounced() }
+                .onAppear { validateDebounced() }
+
+            if let errorMessage = validationResult.errorMessage {
+                errorBanner(errorMessage)
+            }
+        }
+    }
+
+    // MARK: - Toolbar
+
+    private var editorToolbar: some View {
+        HStack(spacing: AppSpacing.sm) {
+            validationIndicator
+
+            Spacer()
+
+            Button {
+                text = JSONValidator.prettyPrint(text)
+            } label: {
+                HStack(spacing: AppSpacing.xs) {
+                    Image(systemName: "text.alignleft")
+                    Text("Format")
+                        .font(AppFonts.eyebrow)
+                }
+                .foregroundColor(formatButtonEnabled ? AppColors.brand : AppColors.muted)
+            }
+            .buttonStyle(.plain)
+            .disabled(!formatButtonEnabled)
+        }
+        .padding(.horizontal, AppSpacing.lg)
+        .padding(.vertical, AppSpacing.sm)
+    }
+
+    private var formatButtonEnabled: Bool {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return !trimmed.isEmpty && validationResult.isValid
+    }
+
+    @ViewBuilder
+    private var validationIndicator: some View {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            EmptyView()
+        } else if validationResult.isValid {
+            HStack(spacing: AppSpacing.xs) {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundColor(AppColors.successText)
+                Text("Valid JSON")
+                    .font(AppFonts.eyebrow)
+                    .foregroundColor(AppColors.successText)
+            }
+        } else {
+            HStack(spacing: AppSpacing.xs) {
+                Image(systemName: "exclamationmark.circle.fill")
+                    .foregroundColor(AppColors.errorText)
+                Text("Invalid JSON")
+                    .font(AppFonts.eyebrow)
+                    .foregroundColor(AppColors.errorText)
+            }
+        }
+    }
+
+    // MARK: - Error banner
+
+    private func errorBanner(_ message: String) -> some View {
+        HStack(spacing: AppSpacing.sm) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.caption)
+            Text(message)
+                .font(AppFonts.eyebrow)
+                .lineLimit(2)
+        }
+        .foregroundColor(AppColors.errorText)
+        .padding(AppSpacing.sm)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(AppColors.errorBg)
+        .cornerRadius(AppSpacing.radiusBadge)
+        .padding(.horizontal, AppSpacing.lg)
+        .padding(.bottom, AppSpacing.sm)
+    }
+
+    // MARK: - Validation
+
+    private func validateDebounced() {
+        validationWorkItem?.cancel()
+        let workItem = DispatchWorkItem { [text] in
+            validationResult = JSONValidator.validate(text)
+        }
+        validationWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: workItem)
     }
 }
 
