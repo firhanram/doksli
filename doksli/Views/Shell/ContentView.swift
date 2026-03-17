@@ -7,7 +7,7 @@ struct ContentView: View {
 
     var body: some View {
         NavigationSplitView {
-            sidebarPlaceholder
+            SidebarView()
                 .navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 300)
         } content: {
             contentPlaceholder
@@ -18,19 +18,7 @@ struct ContentView: View {
         .toolbar { ToolbarView(appState: appState) }
     }
 
-    // MARK: Placeholders — replaced in Phases 5–7
-
-    private var sidebarPlaceholder: some View {
-        VStack {
-            Spacer()
-            Text("Sidebar")
-                .font(AppFonts.title)
-                .foregroundColor(AppColors.textTertiary)
-            Spacer()
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(AppColors.surface)
-    }
+    // MARK: Placeholders — replaced in Phases 6–7
 
     private var contentPlaceholder: some View {
         VStack {

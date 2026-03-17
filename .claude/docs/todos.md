@@ -143,19 +143,19 @@ Every task requires a verification checklist written and approved before code st
 ## Phase 5 — Sidebar
 > Build before request editor — needed to load and switch requests.
 
-- [ ] Workspace selector
+- [x] ✅ Workspace selector — approved 2026-03-17
   - Checklist: `docs/checklists/05-workspace-selector.md`
   - Verify: shows active workspace name · dropdown lists all workspaces · `+` creates new · selection updates `AppState.selectedWorkspace`
 
-- [ ] `OutlineGroup` request tree
+- [x] ✅ `OutlineGroup` request tree — approved 2026-03-17
   - Checklist: `docs/checklists/05-outline-tree.md`
   - Verify: arbitrary depth renders · expand/collapse works · active request highlighted · selection updates `AppState.selectedRequest`
 
-- [ ] `MethodBadge` component
+- [x] ✅ `MethodBadge` component — approved 2026-03-17
   - Checklist: `docs/checklists/05-method-badge.md`
   - Verify: all 7 methods render · colors match `AppColors.method*` exactly · no hardcoded hex · single `method:` parameter
 
-- [ ] Context menu
+- [x] ✅ Context menu — approved 2026-03-17
   - Checklist: `docs/checklists/05-context-menu.md`
   - Verify: rename/duplicate/delete/move on request rows · rename/delete/new inside on folder rows · actions mutate `AppState`
 
