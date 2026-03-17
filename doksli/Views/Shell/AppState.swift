@@ -35,7 +35,6 @@ class AppState: ObservableObject {
     @Published var lastError: String? = nil
     @Published var showEnvEditor: Bool = false
     @Published var editingEnvironment: Environment? = nil
-    @Published var historyEntries: [HistoryEntry] = []
 
     // MARK: - Environment helpers
 
@@ -67,7 +66,7 @@ class AppState: ObservableObject {
                 let response = try await HTTPClient.send(request, environment: activeEnvironment)
                 pendingResponse = response
                 isLoading = false
-                recordHistory(request: request, response: response)
+
             } catch let error as URLError {
                 isLoading = false
                 lastError = mapURLError(error)
@@ -189,23 +188,4 @@ class AppState: ObservableObject {
         return result
     }
 
-    // MARK: - History
-
-    func loadHistory() {
-        historyEntries = StorageService.loadHistory()
-    }
-
-    func recordHistory(request: Request, response: Response) {
-        let entry = HistoryEntry(
-            id: UUID(),
-            request: request,
-            response: response,
-            timestamp: Date()
-        )
-        historyEntries.insert(entry, at: 0)
-        if historyEntries.count > 100 {
-            historyEntries = Array(historyEntries.prefix(100))
-        }
-        try? StorageService.appendHistory(entry)
-    }
 }

@@ -1,13 +1,6 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-// MARK: - SidebarTab
-
-enum SidebarTab: String, CaseIterable {
-    case collections = "Collections"
-    case history = "History"
-}
-
 // MARK: - SidebarView
 
 struct SidebarView: View {
@@ -22,7 +15,6 @@ struct SidebarView: View {
     @State private var deletingFolderId: UUID?
     @State private var deletingItemName = ""
     @State private var expandedFolders: Set<UUID> = []
-    @State private var sidebarTab: SidebarTab = .collections
     @State private var draggedItemId: UUID?
 
     var body: some View {
@@ -32,32 +24,19 @@ struct SidebarView: View {
             Divider()
                 .foregroundColor(AppColors.subtle)
 
-            TabBarView(
-                tabs: SidebarTab.allCases,
-                activeTab: $sidebarTab,
-                label: { $0.rawValue }
-            )
-
             Group {
-                switch sidebarTab {
-                case .collections:
-                    if let workspace = appState.selectedWorkspace {
-                        collectionsTree(workspace)
-                    } else {
-                        emptyState
-                    }
-                case .history:
-                    HistoryView()
+                if let workspace = appState.selectedWorkspace {
+                    collectionsTree(workspace)
+                } else {
+                    emptyState
                 }
             }
             .frame(maxHeight: .infinity)
 
-            if sidebarTab == .collections {
-                Divider()
-                    .foregroundColor(AppColors.subtle)
+            Divider()
+                .foregroundColor(AppColors.subtle)
 
-                newRequestButton
-            }
+            newRequestButton
         }
         .background(AppColors.surface)
         .contextMenu { sidebarContextMenu }
