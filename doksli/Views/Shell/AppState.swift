@@ -12,6 +12,8 @@ class AppState: ObservableObject {
                 selectedRequest = nil
                 pendingResponse = nil
                 lastError = nil
+                responseCache.removeAll()
+                errorCache.removeAll()
 
                 if let envId = selectedWorkspace?.activeEnvironmentId {
                     activeEnvironment = environments.first { $0.id == envId }
@@ -21,7 +23,20 @@ class AppState: ObservableObject {
             }
         }
     }
-    @Published var selectedRequest: Request? = nil
+    @Published var selectedRequest: Request? = nil {
+        didSet {
+            // Save response for previous request
+            if let prevId = oldValue?.id, prevId != selectedRequest?.id {
+                responseCache[prevId] = pendingResponse
+                errorCache[prevId] = lastError
+            }
+            // Restore response for newly selected request
+            if let newId = selectedRequest?.id, newId != oldValue?.id {
+                pendingResponse = responseCache[newId] ?? nil
+                lastError = errorCache[newId] ?? nil
+            }
+        }
+    }
     @Published var activeEnvironment: Environment? = nil {
         didSet {
             // Persist environment selection to the current workspace
@@ -39,6 +54,8 @@ class AppState: ObservableObject {
     @Published var lastError: String? = nil
     @Published var showEnvEditor: Bool = false
     @Published var editingEnvironment: Environment? = nil
+    private var responseCache: [UUID: Response?] = [:]
+    private var errorCache: [UUID: String?] = [:]
 
     // MARK: - Environment helpers
 
@@ -61,19 +78,30 @@ class AppState: ObservableObject {
               !request.url.trimmingCharacters(in: .whitespaces).isEmpty,
               !isLoading else { return }
 
+        // Validate: GET and HEAD must not have a body
+        if (request.method == .GET || request.method == .HEAD), request.body != .none {
+            pendingResponse = nil
+            lastError = "\(request.method.rawValue) method must not have a body"
+            cacheCurrentResponse(for: request.id)
+            return
+        }
+
         isLoading = true
         pendingResponse = nil
         lastError = nil
 
+        let requestId = request.id
         Task {
             do {
                 let response = try await HTTPClient.send(request, environment: activeEnvironment)
                 pendingResponse = response
                 isLoading = false
+                cacheCurrentResponse(for: requestId)
 
             } catch let error as URLError {
                 isLoading = false
                 lastError = mapURLError(error)
+                cacheCurrentResponse(for: requestId)
             } catch let error as HTTPClientError {
                 isLoading = false
                 switch error {
@@ -82,9 +110,11 @@ class AppState: ObservableObject {
                 case .notHTTPResponse:
                     lastError = "Server returned an invalid response"
                 }
+                cacheCurrentResponse(for: requestId)
             } catch {
                 isLoading = false
                 lastError = error.localizedDescription
+                cacheCurrentResponse(for: requestId)
             }
         }
     }
@@ -111,6 +141,15 @@ class AppState: ObservableObject {
     func clearResponse() {
         pendingResponse = nil
         lastError = nil
+        if let id = selectedRequest?.id {
+            responseCache.removeValue(forKey: id)
+            errorCache.removeValue(forKey: id)
+        }
+    }
+
+    private func cacheCurrentResponse(for requestId: UUID) {
+        responseCache[requestId] = pendingResponse
+        errorCache[requestId] = lastError
     }
 
     // MARK: - Workspace mutations
@@ -145,7 +184,6 @@ class AppState: ObservableObject {
         workspaces[wsIndex] = workspace
         selectedWorkspace = workspace
         selectedRequest = newRequest
-        pendingResponse = nil
     }
 
     func addNewFolder() {
