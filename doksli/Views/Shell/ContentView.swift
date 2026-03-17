@@ -11,10 +11,12 @@ struct ContentView: View {
                 .navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 300)
         } content: {
             RequestView()
+                .navigationSplitViewColumnWidth(min: 400, ideal: 500)
         } detail: {
             ResponseView()
+                .navigationSplitViewColumnWidth(min: 400, ideal: 500)
         }
-        .frame(minWidth: 900, minHeight: 600)
+        .frame(minWidth: 1000, minHeight: 600)
         .navigationTitle("Doksli")
         .toolbar { ToolbarView(appState: appState) }
         .sheet(isPresented: $appState.showEnvEditor) {
