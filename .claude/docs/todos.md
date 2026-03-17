@@ -79,19 +79,19 @@ Every task requires a verification checklist written and approved before code st
 ## Phase 2 — Storage service
 > Write and verify persistence before any UI.
 
-- [ ] `StorageService` — workspaces read/write
+- [x] ✅ `StorageService` — workspaces read/write — approved 2026-03-17
   - Checklist: `docs/checklists/02-storage-workspaces.md`
   - Verify: atomic write (temp + rename) · file created on first save · loads correctly after restart simulation · corrupt file returns empty, does not crash
 
-- [ ] `StorageService` — environments read/write
+- [x] ✅ `StorageService` — environments read/write — approved 2026-03-17
   - Checklist: `docs/checklists/02-storage-environments.md`
   - Verify: separate file from workspaces · same atomic write pattern · empty environments returns `[]`
 
-- [ ] `StorageService` — history ring buffer
+- [x] ✅ `StorageService` — history ring buffer — approved 2026-03-17
   - Checklist: `docs/checklists/02-storage-history.md`
   - Verify: capped at 100 · 101st entry drops oldest · order is newest-first · empty returns `[]`
 
-- [ ] `XCTest` round-trip suite
+- [x] ✅ `XCTest` round-trip suite — approved 2026-03-17
   - Checklist: `docs/checklists/02-storage-tests.md`
   - Verify: Workspace round-trip · Request with all body types round-trip · Response with binary body round-trip
 
@@ -100,24 +100,24 @@ Every task requires a verification checklist written and approved before code st
 ## Phase 3 — HTTP client & variable resolver
 > Pure Swift. No SwiftUI dependency. Test in isolation.
 
-- [ ] `VariableResolver.resolve()`
+- [x] ✅ `VariableResolver.resolve()` — approved 2026-03-17
   - Checklist: `docs/checklists/03-variable-resolver.md`
   - Verify: known vars replaced · unknown vars left as-is · disabled vars skipped · nil env safe · original string not mutated
   - See example checklist in `agent-workflow.md`
 
-- [ ] `HTTPClient.buildRequest(from:environment:)`
+- [x] ✅ `HTTPClient.buildRequest(from:environment:)` — approved 2026-03-17
   - Checklist: `docs/checklists/03-http-client-build.md`
   - Verify: all 7 methods produce correct `httpMethod` · query params appended · headers set · body encoded per `RequestBody` · vars resolved before building
 
-- [ ] `HTTPClient.send(_:)`
+- [x] ✅ `HTTPClient.send(_:)` — approved 2026-03-17
   - Checklist: `docs/checklists/03-http-client-send.md`
   - Verify: `async throws` · `ContinuousClock` wraps session call · network error propagates · cancellation handled
 
-- [ ] Response mapping `HTTPURLResponse` → `Response`
+- [x] ✅ Response mapping `HTTPURLResponse` → `Response` — approved 2026-03-17
   - Checklist: `docs/checklists/03-response-mapping.md`
   - Verify: status code extracted · all headers captured as `[KVPair]` · `sizeBytes` = `data.count` · `durationMs` is wall-clock time
 
-- [ ] Integration tests against `httpbin.org`
+- [x] ✅ Integration tests against `httpbin.org` — approved 2026-03-17
   - Checklist: `docs/checklists/03-integration-tests.md`
   - Verify: `GET /get` returns 200 · `POST /post` with JSON body echoes body · headers round-trip · `DELETE /delete` returns 200
 
@@ -126,15 +126,15 @@ Every task requires a verification checklist written and approved before code st
 ## Phase 4 — App shell & navigation
 > Build skeleton with placeholder content before filling in real views.
 
-- [ ] `NavigationSplitView` shell
+- [x] ✅ `NavigationSplitView` shell — approved 2026-03-17
   - Checklist: `docs/checklists/04-navigation-shell.md`
   - Verify: 3 columns present · sidebar 200px min · content flexible · window min size `900×600` · columns collapse correctly
 
-- [ ] `AppState` observable object
+- [x] ✅ `AppState` observable object — approved 2026-03-17
   - Checklist: `docs/checklists/04-app-state.md`
   - Verify: all 6 published properties present · `@MainActor` annotation · injected via `@StateObject` at root · no business logic inside `AppState`
 
-- [ ] Toolbar
+- [x] ✅ Toolbar — approved 2026-03-17
   - Checklist: `docs/checklists/04-toolbar.md`
   - Verify: env selector `Menu` on right · keyboard shortcuts defined · `.preferredColorScheme(.light)` at `WindowGroup`
 

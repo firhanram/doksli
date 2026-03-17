@@ -9,6 +9,7 @@ import SwiftUI
 
 @main
 struct doksliApp: App {
+    @StateObject private var appState = AppState()
 
     init() {
         setupStorageDirectory()
@@ -17,7 +18,11 @@ struct doksliApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environmentObject(appState)
                 .preferredColorScheme(.light)
+        }
+        .commands {
+            CommandGroup(replacing: .newItem) { }
         }
     }
 
