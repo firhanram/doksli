@@ -141,8 +141,8 @@ struct EnvEditorSheet: View {
     private func variablesList(at index: Int) -> some View {
         ScrollView {
             LazyVStack(spacing: 0) {
-                ForEach(appState.environments[index].variables.indices, id: \.self) { varIndex in
-                    variableRow(envIndex: index, varIndex: varIndex)
+                ForEach(appState.environments[index].variables) { envVar in
+                    variableRow(envIndex: index, varId: envVar.id)
                     Divider().foregroundColor(AppColors.subtle)
                 }
             }
@@ -165,24 +165,24 @@ struct EnvEditorSheet: View {
         }
     }
 
-    private func variableRow(envIndex: Int, varIndex: Int) -> some View {
+    private func variableRow(envIndex: Int, varId: UUID) -> some View {
         HStack(spacing: AppSpacing.sm) {
-            Toggle("", isOn: varEnabledBinding(envIndex: envIndex, varIndex: varIndex))
+            Toggle("", isOn: varBinding(envIndex: envIndex, varId: varId, keyPath: \.enabled))
                 .toggleStyle(.checkbox)
                 .labelsHidden()
 
-            TextField("Key", text: varKeyBinding(envIndex: envIndex, varIndex: varIndex))
+            TextField("Key", text: varBinding(envIndex: envIndex, varId: varId, keyPath: \.key))
                 .font(AppFonts.mono)
                 .textFieldStyle(.plain)
                 .frame(maxWidth: .infinity)
 
-            TextField("Value", text: varValueBinding(envIndex: envIndex, varIndex: varIndex))
+            TextField("Value", text: varBinding(envIndex: envIndex, varId: varId, keyPath: \.value))
                 .font(AppFonts.mono)
                 .textFieldStyle(.plain)
                 .frame(maxWidth: .infinity)
 
             Button {
-                appState.environments[envIndex].variables.remove(at: varIndex)
+                appState.environments[envIndex].variables.removeAll { $0.id == varId }
                 appState.saveEnvironments()
             } label: {
                 Image(systemName: "xmark")
@@ -245,31 +245,18 @@ struct EnvEditorSheet: View {
         )
     }
 
-    private func varEnabledBinding(envIndex: Int, varIndex: Int) -> Binding<Bool> {
+    private func varBinding<T>(envIndex: Int, varId: UUID, keyPath: WritableKeyPath<EnvVar, T>) -> Binding<T> {
         Binding(
-            get: { appState.environments[envIndex].variables[varIndex].enabled },
-            set: {
-                appState.environments[envIndex].variables[varIndex].enabled = $0
-                appState.saveEnvironments()
-            }
-        )
-    }
-
-    private func varKeyBinding(envIndex: Int, varIndex: Int) -> Binding<String> {
-        Binding(
-            get: { appState.environments[envIndex].variables[varIndex].key },
-            set: {
-                appState.environments[envIndex].variables[varIndex].key = $0
-                appState.saveEnvironments()
-            }
-        )
-    }
-
-    private func varValueBinding(envIndex: Int, varIndex: Int) -> Binding<String> {
-        Binding(
-            get: { appState.environments[envIndex].variables[varIndex].value },
-            set: {
-                appState.environments[envIndex].variables[varIndex].value = $0
+            get: {
+                guard let vi = appState.environments[envIndex].variables.firstIndex(where: { $0.id == varId }) else {
+                    // Fallback — should not happen, but prevents crash
+                    return EnvVar(id: UUID(), key: "", value: "", enabled: true)[keyPath: keyPath]
+                }
+                return appState.environments[envIndex].variables[vi][keyPath: keyPath]
+            },
+            set: { newValue in
+                guard let vi = appState.environments[envIndex].variables.firstIndex(where: { $0.id == varId }) else { return }
+                appState.environments[envIndex].variables[vi][keyPath: keyPath] = newValue
                 appState.saveEnvironments()
             }
         )
