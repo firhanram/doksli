@@ -17,7 +17,7 @@ struct RequestRow: View {
         .padding(.horizontal, AppSpacing.sm)
         .padding(.vertical, AppSpacing.xs)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(isActive ? AppColors.brandTint50 : Color.clear)
+        .background(isActive ? AppColors.subtle : Color.clear)
         .cornerRadius(AppSpacing.radiusCard)
     }
 }
