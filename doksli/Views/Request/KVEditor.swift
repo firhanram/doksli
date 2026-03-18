@@ -12,7 +12,7 @@ struct KVEditor: View {
     var parentValueType: KVPair.ValueType? = nil
 
     var body: some View {
-        VStack(spacing: 0) {
+        LazyVStack(spacing: 0) {
             ForEach(Array(pairs.enumerated()), id: \.element.id) { index, pair in
                 let pairBinding = $pairs[safeIndex(for: pair)]
 

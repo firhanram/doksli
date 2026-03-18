@@ -4,22 +4,24 @@ import SwiftUI
 
 struct RawBodyView: View {
     let data: Data
+    private let bodyString: String
+    private let lines: [String]
 
-    private var bodyString: String {
-        // Pretty-print JSON for readability; fall back to raw UTF-8, then hex
+    init(data: Data) {
+        self.data = data
+        // Compute once at init, not on every body evaluation
+        let str: String
         if let obj = try? JSONSerialization.jsonObject(with: data, options: .fragmentsAllowed),
            let pretty = try? JSONSerialization.data(withJSONObject: obj, options: [.prettyPrinted, .sortedKeys]),
            let text = String(data: pretty, encoding: .utf8) {
-            return text
+            str = text
+        } else if let text = String(data: data, encoding: .utf8) {
+            str = text
+        } else {
+            str = data.map { String(format: "%02X ", $0) }.joined()
         }
-        if let text = String(data: data, encoding: .utf8) {
-            return text
-        }
-        return data.map { String(format: "%02X ", $0) }.joined()
-    }
-
-    private var lines: [String] {
-        bodyString.components(separatedBy: "\n")
+        self.bodyString = str
+        self.lines = str.components(separatedBy: "\n")
     }
 
     var body: some View {
