@@ -13,6 +13,11 @@ struct KVEditor: View {
 
     var body: some View {
         LazyVStack(spacing: 0) {
+            if depth == 0 && !pairs.isEmpty {
+                toggleAllRow
+                Divider().foregroundColor(AppColors.subtle)
+            }
+
             ForEach(Array(pairs.enumerated()), id: \.element.id) { index, pair in
                 let pairBinding = $pairs[safeIndex(for: pair)]
 
@@ -252,6 +257,35 @@ struct KVEditor: View {
             get: { pair.wrappedValue.children ?? [] },
             set: { pair.wrappedValue.children = $0 }
         )
+    }
+
+    // MARK: - Toggle all
+
+    private var allEnabled: Bool {
+        pairs.allSatisfy { $0.enabled }
+    }
+
+    private var toggleAllRow: some View {
+        HStack(spacing: AppSpacing.sm) {
+            Toggle("", isOn: Binding(
+                get: { allEnabled },
+                set: { newValue in
+                    for i in pairs.indices {
+                        pairs[i].enabled = newValue
+                    }
+                }
+            ))
+            .toggleStyle(.checkbox)
+            .labelsHidden()
+
+            Text(allEnabled ? "Deselect All" : "Select All")
+                .font(AppFonts.eyebrow)
+                .foregroundColor(AppColors.textTertiary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.leading, AppSpacing.lg)
+        .padding(.top, AppSpacing.sm)
+        .padding(.bottom, AppSpacing.xs)
     }
 
     // MARK: - Add button
