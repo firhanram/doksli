@@ -141,13 +141,16 @@ struct EnvEditorSheet: View {
     private func variablesList(at index: Int) -> some View {
         ScrollView {
             LazyVStack(spacing: 0) {
-                ForEach(appState.environments[index].variables) { envVar in
-                    variableRow(envIndex: index, varId: envVar.id)
-                    Divider().foregroundColor(AppColors.subtle)
+                if index < appState.environments.count {
+                    ForEach(appState.environments[index].variables) { envVar in
+                        variableRow(envIndex: index, varId: envVar.id)
+                        Divider().foregroundColor(AppColors.subtle)
+                    }
                 }
             }
 
             Button {
+                guard index < appState.environments.count else { return }
                 let newVar = EnvVar(id: UUID(), key: "", value: "", enabled: true)
                 appState.environments[index].variables.append(newVar)
                 appState.saveEnvironments()
@@ -182,6 +185,7 @@ struct EnvEditorSheet: View {
                 .frame(maxWidth: .infinity)
 
             Button {
+                guard envIndex < appState.environments.count else { return }
                 appState.environments[envIndex].variables.removeAll { $0.id == varId }
                 appState.saveEnvironments()
             } label: {
@@ -237,8 +241,12 @@ struct EnvEditorSheet: View {
 
     private func envNameBinding(at index: Int) -> Binding<String> {
         Binding(
-            get: { appState.environments[index].name },
+            get: {
+                guard index < appState.environments.count else { return "" }
+                return appState.environments[index].name
+            },
             set: {
+                guard index < appState.environments.count else { return }
                 appState.environments[index].name = $0
                 appState.saveEnvironments()
             }
@@ -248,14 +256,15 @@ struct EnvEditorSheet: View {
     private func varBinding<T>(envIndex: Int, varId: UUID, keyPath: WritableKeyPath<EnvVar, T>) -> Binding<T> {
         Binding(
             get: {
-                guard let vi = appState.environments[envIndex].variables.firstIndex(where: { $0.id == varId }) else {
-                    // Fallback — should not happen, but prevents crash
+                guard envIndex < appState.environments.count,
+                      let vi = appState.environments[envIndex].variables.firstIndex(where: { $0.id == varId }) else {
                     return EnvVar(id: UUID(), key: "", value: "", enabled: true)[keyPath: keyPath]
                 }
                 return appState.environments[envIndex].variables[vi][keyPath: keyPath]
             },
             set: { newValue in
-                guard let vi = appState.environments[envIndex].variables.firstIndex(where: { $0.id == varId }) else { return }
+                guard envIndex < appState.environments.count,
+                      let vi = appState.environments[envIndex].variables.firstIndex(where: { $0.id == varId }) else { return }
                 appState.environments[envIndex].variables[vi][keyPath: keyPath] = newValue
                 appState.saveEnvironments()
             }
