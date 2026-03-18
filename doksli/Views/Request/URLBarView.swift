@@ -154,11 +154,21 @@ struct URLBarView: View {
                 }
             },
             set: { newValue in
-                // Strip query params from URL when user edits directly
                 if let questionMark = newValue.range(of: "?") {
                     request.url = String(newValue[..<questionMark.lowerBound])
+                    let newQuery = String(newValue[questionMark.upperBound...])
+                    // Only re-parse if the query string actually changed
+                    let currentQuery = HTTPClient.flattenPairs(request.params)
+                        .map { "\($0.name)=\($0.pair.value)" }
+                        .joined(separator: "&")
+                    if newQuery != currentQuery {
+                        request.params = Self.parseQueryParams(newQuery)
+                    }
                 } else {
                     request.url = newValue
+                    if !request.params.isEmpty {
+                        request.params = []
+                    }
                 }
             }
         )
@@ -408,5 +418,143 @@ struct URLBarView: View {
     private func sendRequest() {
         guard canSend else { return }
         appState.sendCurrentRequest()
+    }
+
+    // MARK: - Query param parsing
+
+    /// Parses a query string into `[KVPair]`, supporting bracket notation for nested params.
+    /// e.g. `page=1&filter[status]=active&ids[0]=a&ids[1]=b`
+    static func parseQueryParams(_ queryString: String) -> [KVPair] {
+        guard !queryString.isEmpty else { return [] }
+
+        // Collect all (segments, value) tuples
+        var entries: [([String], String)] = []
+
+        for part in queryString.split(separator: "&", omittingEmptySubsequences: true) {
+            let pair = part.split(separator: "=", maxSplits: 1)
+            let rawKey = String(pair[0])
+            let rawValue = pair.count > 1 ? String(pair[1]) : ""
+
+            let key = rawKey.removingPercentEncoding ?? rawKey
+            let value = rawValue.removingPercentEncoding ?? rawValue
+
+            let segments = parseBracketSegments(key)
+            entries.append((segments, value))
+        }
+
+        return buildKVPairTree(from: entries)
+    }
+
+    /// Splits `"filter[status]"` → `["filter", "status"]`
+    /// Splits `"ids[0]"` → `["ids", "0"]`
+    /// Splits `"page"` → `["page"]`
+    private static func parseBracketSegments(_ key: String) -> [String] {
+        guard let bracketStart = key.firstIndex(of: "[") else {
+            return [key]
+        }
+
+        let root = String(key[..<bracketStart])
+        var segments = [root]
+        var remaining = key[bracketStart...]
+
+        while let open = remaining.firstIndex(of: "["),
+              let close = remaining.firstIndex(of: "]"), close > open {
+            let segment = String(remaining[remaining.index(after: open)..<close])
+            segments.append(segment)
+            remaining = remaining[remaining.index(after: close)...]
+        }
+
+        return segments
+    }
+
+    /// Builds a `[KVPair]` tree from parsed entries.
+    /// Merges entries with the same root key into containers.
+    private static func buildKVPairTree(from entries: [([String], String)]) -> [KVPair] {
+        // Preserve insertion order of root keys
+        var rootOrder: [String] = []
+        var grouped: [String: [PendingEntry]] = [:]
+
+        for (segments, value) in entries {
+            guard let root = segments.first else { continue }
+            let rest = Array(segments.dropFirst())
+
+            if grouped[root] == nil {
+                rootOrder.append(root)
+            }
+            grouped[root, default: []].append(PendingEntry(segments: rest, value: value))
+        }
+
+        var result: [KVPair] = []
+
+        for root in rootOrder {
+            guard let pending = grouped[root] else { continue }
+
+            // All entries are flat (no brackets) — simple text param
+            if pending.allSatisfy({ $0.segments.isEmpty }) {
+                // Use last value if duplicated
+                let value = pending.last?.value ?? ""
+                result.append(KVPair(key: root, value: value, enabled: true))
+            } else {
+                // Has nested segments — build container
+                let children = buildChildren(from: pending)
+                let isArray = children.isArrayLike
+                result.append(KVPair(
+                    key: root, enabled: true,
+                    valueType: isArray ? .array : .object,
+                    children: children.pairs
+                ))
+            }
+        }
+
+        return result
+    }
+
+    private struct ChildResult {
+        let pairs: [KVPair]
+        let isArrayLike: Bool
+    }
+
+    private static func buildChildren(from entries: [PendingEntry]) -> ChildResult {
+        // Group by next segment
+        var segOrder: [String] = []
+        var segGrouped: [String: [PendingEntry]] = [:]
+
+        for entry in entries {
+            guard let nextSeg = entry.segments.first else { continue }
+            let rest = Array(entry.segments.dropFirst())
+            if segGrouped[nextSeg] == nil {
+                segOrder.append(nextSeg)
+            }
+            segGrouped[nextSeg, default: []].append(
+                PendingEntry(segments: rest, value: entry.value)
+            )
+        }
+
+        let allNumeric = segOrder.allSatisfy { $0.allSatisfy(\.isNumber) }
+        var pairs: [KVPair] = []
+
+        for seg in segOrder {
+            guard let pending = segGrouped[seg] else { continue }
+
+            if pending.allSatisfy({ $0.segments.isEmpty }) {
+                let value = pending.last?.value ?? ""
+                pairs.append(KVPair(key: seg, value: value, enabled: true))
+            } else {
+                let children = buildChildren(from: pending)
+                let isArray = children.isArrayLike
+                pairs.append(KVPair(
+                    key: seg, enabled: true,
+                    valueType: isArray ? .array : .object,
+                    children: children.pairs
+                ))
+            }
+        }
+
+        return ChildResult(pairs: pairs, isArrayLike: allNumeric)
+    }
+
+    private struct PendingEntry {
+        let segments: [String]
+        let value: String
     }
 }
