@@ -35,10 +35,6 @@ struct SidebarView: View {
             }
             .frame(maxHeight: .infinity)
 
-            Divider()
-                .foregroundColor(AppColors.subtle)
-
-            newRequestButton
         }
         .background(AppColors.surface)
         .contextMenu { sidebarContextMenu }
@@ -652,29 +648,5 @@ struct SidebarView: View {
         }
     }
 
-    // MARK: - New request button
-
-    private var hasWorkspace: Bool {
-        appState.selectedWorkspace != nil
-    }
-
-    private var newRequestButton: some View {
-        Button {
-            appState.addNewRequest()
-        } label: {
-            HStack(spacing: AppSpacing.sm) {
-                Image(systemName: "plus")
-                Text("New Request")
-                    .font(AppFonts.body)
-            }
-            .foregroundColor(hasWorkspace ? AppColors.brand : AppColors.muted)
-            .padding(.horizontal, AppSpacing.lg)
-            .padding(.vertical, AppSpacing.md)
-            .frame(maxWidth: .infinity, alignment: .center)
-        }
-        .buttonStyle(.plain)
-        .disabled(!hasWorkspace)
-        .help(hasWorkspace ? "Add a new request" : "Select or create a workspace first")
-    }
 
 }
