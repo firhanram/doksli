@@ -16,6 +16,8 @@ struct SidebarView: View {
     @State private var deletingItemName = ""
     @State private var expandedFolders: Set<UUID> = []
     @State private var draggedItemId: UUID?
+    @State private var showImportError = false
+    @State private var importError = ""
 
     var body: some View {
         VStack(spacing: 0) {
@@ -49,6 +51,11 @@ struct SidebarView: View {
             TextField("Folder name", text: $renameText)
             Button("Cancel", role: .cancel) {}
             Button("OK") { applyRenameFolder() }
+        }
+        .alert("Import Error", isPresented: $showImportError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(importError)
         }
         .alert("Delete \"\(deletingItemName)\"", isPresented: $isConfirmingDelete) {
             Button("Cancel", role: .cancel) {}
@@ -128,6 +135,14 @@ struct SidebarView: View {
             appState.addNewFolder()
         } label: {
             Label("New Folder", systemImage: "folder.badge.plus")
+        }
+
+        Divider()
+
+        Button {
+            importPostmanCollection()
+        } label: {
+            Label("Import Postman Collection", systemImage: "square.and.arrow.down")
         }
     }
 
@@ -617,6 +632,24 @@ struct SidebarView: View {
 
     private func createWorkspace() {
         appState.createWorkspace()
+    }
+
+    private func importPostmanCollection() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [UTType.json]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.message = "Select a Postman collection JSON file"
+
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        do {
+            let folder = try PostmanImporter.importCollection(from: url)
+            appState.importPostmanFolder(folder)
+        } catch {
+            importError = error.localizedDescription
+            showImportError = true
+        }
     }
 
     // MARK: - New request button

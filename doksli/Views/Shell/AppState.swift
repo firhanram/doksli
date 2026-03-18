@@ -164,6 +164,23 @@ class AppState: ObservableObject {
         selectedWorkspace = newWorkspace
     }
 
+    func importPostmanFolder(_ folder: Folder) {
+        guard var workspace = selectedWorkspace,
+              let wsIndex = workspaces.firstIndex(where: { $0.id == workspace.id }) else { return }
+
+        if workspace.collections.isEmpty {
+            workspace.collections.append(
+                Collection(id: UUID(), name: "Requests", items: [.folder(folder)])
+            )
+        } else {
+            workspace.collections[0].items.append(.folder(folder))
+        }
+
+        workspaces[wsIndex] = workspace
+        selectedWorkspace = workspace
+        try? StorageService.saveWorkspaces(workspaces)
+    }
+
     func addNewRequest(method: HTTPMethod = .GET) {
         guard var workspace = selectedWorkspace,
               let wsIndex = workspaces.firstIndex(where: { $0.id == workspace.id }) else { return }
