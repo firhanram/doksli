@@ -4,6 +4,7 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject var appState: AppState
+    @State private var newWorkspaceName = ""
 
     var body: some View {
         NavigationSplitView {
@@ -21,6 +22,14 @@ struct ContentView: View {
         .sheet(isPresented: $appState.showEnvEditor) {
             EnvEditorSheet()
                 .environmentObject(appState)
+        }
+        .alert("New Workspace", isPresented: $appState.showCreateWorkspace) {
+            TextField("Workspace name", text: $newWorkspaceName)
+            Button("Cancel", role: .cancel) {}
+            Button("Create") {
+                appState.createWorkspace(name: newWorkspaceName)
+                newWorkspaceName = ""
+            }
         }
         .task {
             appState.loadWorkspaces()

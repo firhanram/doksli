@@ -100,13 +100,7 @@ struct WorkspaceRow: View {
     // MARK: - Actions
 
     private func createWorkspace() {
-        let newWorkspace = Workspace(
-            id: UUID(),
-            name: "New Workspace",
-            collections: []
-        )
-        appState.workspaces.append(newWorkspace)
-        appState.selectedWorkspace = newWorkspace
+        appState.showCreateWorkspace = true
     }
 
     private func renameSelectedWorkspace() {

@@ -33,7 +33,7 @@ struct doksliApp: App {
                 Button("New Folder") { appState.addNewFolder() }
                     .keyboardShortcut("n", modifiers: [.command, .shift])
                 Divider()
-                Button("New Workspace") { appState.createWorkspace() }
+                Button("New Workspace") { appState.showCreateWorkspace = true }
                     .keyboardShortcut("w", modifiers: [.command, .shift])
             }
 

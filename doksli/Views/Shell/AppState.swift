@@ -60,6 +60,7 @@ class AppState: ObservableObject {
     @Published var isLoading: Bool = false
     @Published var lastError: String? = nil
     @Published var showEnvEditor: Bool = false
+    @Published var showCreateWorkspace: Bool = false
     @Published var editingEnvironment: Environment? = nil
     private var responseCache: [UUID: Response] = [:]
     private var errorCache: [UUID: String] = [:]
@@ -187,10 +188,11 @@ class AppState: ObservableObject {
 
     // MARK: - Workspace mutations
 
-    func createWorkspace() {
+    func createWorkspace(name: String = "New Workspace") {
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
         let newWorkspace = Workspace(
             id: UUID(),
-            name: "New Workspace",
+            name: trimmed.isEmpty ? "New Workspace" : trimmed,
             collections: []
         )
         workspaces.append(newWorkspace)

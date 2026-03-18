@@ -641,7 +641,7 @@ struct SidebarView: View {
     }
 
     private func createWorkspace() {
-        appState.createWorkspace()
+        appState.showCreateWorkspace = true
     }
 
     private func importPostmanCollection() {
