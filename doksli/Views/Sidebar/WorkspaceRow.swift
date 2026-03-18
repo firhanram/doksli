@@ -112,6 +112,7 @@ struct WorkspaceRow: View {
         }
         appState.workspaces[index].name = trimmed
         appState.selectedWorkspace = appState.workspaces[index]
+        appState.saveWorkspaces()
     }
 
     private func deleteSelectedWorkspace() {
@@ -119,5 +120,6 @@ struct WorkspaceRow: View {
         appState.workspaces.removeAll { $0.id == selected.id }
         appState.selectedWorkspace = appState.workspaces.first
         appState.selectedRequest = nil
+        appState.saveWorkspaces()
     }
 }
