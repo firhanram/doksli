@@ -12,8 +12,6 @@ class AppState: ObservableObject {
                 selectedRequest = nil
                 pendingResponse = nil
                 lastError = nil
-                responseCache.removeAll()
-                errorCache.removeAll()
 
                 if let envId = selectedWorkspace?.activeEnvironmentId {
                     activeEnvironment = environments.first { $0.id == envId }
@@ -27,13 +25,21 @@ class AppState: ObservableObject {
         didSet {
             // Save response for previous request
             if let prevId = oldValue?.id, prevId != selectedRequest?.id {
-                responseCache[prevId] = pendingResponse
-                errorCache[prevId] = lastError
+                if let response = pendingResponse {
+                    responseCache[prevId] = response
+                } else {
+                    responseCache.removeValue(forKey: prevId)
+                }
+                if let error = lastError {
+                    errorCache[prevId] = error
+                } else {
+                    errorCache.removeValue(forKey: prevId)
+                }
             }
             // Restore response for newly selected request
             if let newId = selectedRequest?.id, newId != oldValue?.id {
-                pendingResponse = responseCache[newId] ?? nil
-                lastError = errorCache[newId] ?? nil
+                pendingResponse = responseCache[newId]
+                lastError = errorCache[newId]
             }
         }
     }
@@ -55,13 +61,14 @@ class AppState: ObservableObject {
     @Published var lastError: String? = nil
     @Published var showEnvEditor: Bool = false
     @Published var editingEnvironment: Environment? = nil
-    private var responseCache: [UUID: Response?] = [:]
-    private var errorCache: [UUID: String?] = [:]
+    private var responseCache: [UUID: Response] = [:]
+    private var errorCache: [UUID: String] = [:]
 
     // MARK: - Workspace helpers
 
     func loadWorkspaces() {
         workspaces = StorageService.loadWorkspaces()
+        responseCache = StorageService.loadResponseCache()
         selectedWorkspace = workspaces.first
     }
 
@@ -156,12 +163,26 @@ class AppState: ObservableObject {
         if let id = selectedRequest?.id {
             responseCache.removeValue(forKey: id)
             errorCache.removeValue(forKey: id)
+            saveResponseCache()
         }
     }
 
     private func cacheCurrentResponse(for requestId: UUID) {
-        responseCache[requestId] = pendingResponse
-        errorCache[requestId] = lastError
+        if let response = pendingResponse {
+            responseCache[requestId] = response
+        } else {
+            responseCache.removeValue(forKey: requestId)
+        }
+        if let error = lastError {
+            errorCache[requestId] = error
+        } else {
+            errorCache.removeValue(forKey: requestId)
+        }
+        saveResponseCache()
+    }
+
+    private func saveResponseCache() {
+        try? StorageService.saveResponseCache(responseCache)
     }
 
     // MARK: - Workspace mutations

@@ -33,6 +33,16 @@ struct StorageService {
         try save(environments, filename: "environments.json", to: directory)
     }
 
+    // MARK: - Response cache
+
+    static func loadResponseCache(from directory: URL = defaultStorageURL) -> [UUID: Response] {
+        load(filename: "responses.json", from: directory) ?? [:]
+    }
+
+    static func saveResponseCache(_ cache: [UUID: Response], to directory: URL = defaultStorageURL) throws {
+        try save(cache, filename: "responses.json", to: directory)
+    }
+
     // MARK: - History (ring buffer, newest-first, capped at 100)
 
     static func loadHistory(from directory: URL = defaultStorageURL) -> [HistoryEntry] {
@@ -57,6 +67,7 @@ struct StorageService {
     }
 
     private static func save<T: Encodable>(_ value: T, filename: String, to directory: URL) throws {
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let data = try JSONEncoder().encode(value)
         let target = directory.appendingPathComponent(filename)
         let temp = directory.appendingPathComponent(filename + ".tmp")
