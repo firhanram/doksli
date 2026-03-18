@@ -46,6 +46,7 @@ class AppState: ObservableObject {
             workspace.activeEnvironmentId = activeEnvironment?.id
             workspaces[wsIndex] = workspace
             selectedWorkspace = workspace
+            try? StorageService.saveWorkspaces(workspaces)
         }
     }
     @Published var environments: [Environment] = []
@@ -56,6 +57,17 @@ class AppState: ObservableObject {
     @Published var editingEnvironment: Environment? = nil
     private var responseCache: [UUID: Response?] = [:]
     private var errorCache: [UUID: String?] = [:]
+
+    // MARK: - Workspace helpers
+
+    func loadWorkspaces() {
+        workspaces = StorageService.loadWorkspaces()
+        selectedWorkspace = workspaces.first
+    }
+
+    func saveWorkspaces() {
+        try? StorageService.saveWorkspaces(workspaces)
+    }
 
     // MARK: - Environment helpers
 
@@ -162,6 +174,7 @@ class AppState: ObservableObject {
         )
         workspaces.append(newWorkspace)
         selectedWorkspace = newWorkspace
+        saveWorkspaces()
     }
 
     func importPostmanFolder(_ folder: Folder) {
@@ -178,7 +191,7 @@ class AppState: ObservableObject {
 
         workspaces[wsIndex] = workspace
         selectedWorkspace = workspace
-        try? StorageService.saveWorkspaces(workspaces)
+        saveWorkspaces()
     }
 
     func addNewRequest(method: HTTPMethod = .GET) {
@@ -201,6 +214,7 @@ class AppState: ObservableObject {
         workspaces[wsIndex] = workspace
         selectedWorkspace = workspace
         selectedRequest = newRequest
+        saveWorkspaces()
     }
 
     func addNewFolder() {
@@ -219,6 +233,7 @@ class AppState: ObservableObject {
 
         workspaces[wsIndex] = workspace
         selectedWorkspace = workspace
+        saveWorkspaces()
     }
 
     func duplicateSelectedRequest() {
@@ -238,6 +253,7 @@ class AppState: ObservableObject {
 
         workspaces[wsIndex] = workspace
         selectedWorkspace = workspace
+        saveWorkspaces()
     }
 
     private func insertAfter(requestId: UUID, newItem: Item, in items: [Item]) -> [Item] {

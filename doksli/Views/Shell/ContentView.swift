@@ -22,7 +22,10 @@ struct ContentView: View {
             EnvEditorSheet()
                 .environmentObject(appState)
         }
-        .task { appState.loadEnvironments() }
+        .task {
+            appState.loadWorkspaces()
+            appState.loadEnvironments()
+        }
     }
 }
 

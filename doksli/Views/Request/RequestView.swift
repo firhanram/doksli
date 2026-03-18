@@ -128,6 +128,7 @@ struct RequestView: View {
 
         appState.workspaces[wsIndex] = workspace
         appState.selectedWorkspace = workspace
+        appState.saveWorkspaces()
     }
 
     private func updateRequestInItems(requestId: UUID, request: Request, in items: [Item]) -> [Item] {

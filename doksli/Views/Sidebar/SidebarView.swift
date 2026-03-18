@@ -318,6 +318,7 @@ struct SidebarView: View {
 
         appState.workspaces[wsIndex] = workspace
         appState.selectedWorkspace = workspace
+        appState.saveWorkspaces()
     }
 
     private func confirmDelete(requestId: UUID? = nil, folderId: UUID? = nil, name: String) {
@@ -343,6 +344,7 @@ struct SidebarView: View {
 
         appState.workspaces[wsIndex] = workspace
         appState.selectedWorkspace = workspace
+        appState.saveWorkspaces()
     }
 
     private func addRequestInFolder(_ folder: Folder, method: HTTPMethod = .GET) {
@@ -364,6 +366,7 @@ struct SidebarView: View {
         appState.selectedWorkspace = workspace
         appState.selectedRequest = newRequest
         expandedFolders.insert(folder.id)
+        appState.saveWorkspaces()
     }
 
     private func renameRequest(_ request: Request) {
@@ -396,6 +399,7 @@ struct SidebarView: View {
         if appState.selectedRequest?.id == rid {
             appState.selectedRequest?.name = trimmed
         }
+        appState.saveWorkspaces()
     }
 
     private func applyRenameFolder() {
@@ -413,6 +417,7 @@ struct SidebarView: View {
 
         appState.workspaces[wsIndex] = workspace
         appState.selectedWorkspace = workspace
+        appState.saveWorkspaces()
     }
 
     private func renameRequestInItems(requestId: UUID, newName: String, in items: [Item]) -> [Item] {
@@ -537,7 +542,7 @@ struct SidebarView: View {
         appState.workspaces[wsIndex] = workspace
         appState.selectedWorkspace = workspace
         expandedFolders.insert(targetFolderId)
-        try? StorageService.saveWorkspaces(appState.workspaces)
+        appState.saveWorkspaces()
         draggedItemId = nil
     }
 
