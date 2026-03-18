@@ -177,6 +177,7 @@ struct SidebarView: View {
                                 itemRow(child)
                             }
                         }
+                        .padding(.leading, AppSpacing.sm)
                     } label: {
                         HStack(spacing: AppSpacing.xs) {
                             FolderRow(folder: folder)
@@ -189,8 +190,16 @@ struct SidebarView: View {
                 .onDrop(of: [.text], isTargeted: nil) { providers in
                     handleDrop(providers: providers, targetFolderId: folder.id)
                 }
-                .padding(.top, AppSpacing.xs)
                 .padding(.leading, AppSpacing.sm)
+                .background(alignment: .leading) {
+                    if isExpanded.wrappedValue {
+                        Rectangle()
+                            .fill(AppColors.muted)
+                            .frame(width: 1)
+                            .padding(.top, 28)
+                            .padding(.leading, 11)
+                    }
+                }
             )
 
         case .request(let request):
