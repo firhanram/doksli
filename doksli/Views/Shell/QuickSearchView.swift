@@ -15,8 +15,9 @@ struct QuickSearchView: View {
 
     var body: some View {
         ZStack {
-            Color.black.opacity(0.2)
+            Color.clear
                 .ignoresSafeArea()
+                .contentShape(Rectangle())
                 .onTapGesture { close() }
 
             VStack(spacing: 0) {
