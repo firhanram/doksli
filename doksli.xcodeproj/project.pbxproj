@@ -24,7 +24,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		04D2DE2D2F68401A00DF3554 /* doksli.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = doksli.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		04D2DE2D2F68401A00DF3554 /* Doksli.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Doksli.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		04D2DE3E2F68401C00DF3554 /* doksliTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = doksliTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		04D2DE482F68401C00DF3554 /* doksliUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = doksliUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -85,7 +85,7 @@
 		04D2DE2E2F68401A00DF3554 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				04D2DE2D2F68401A00DF3554 /* doksli.app */,
+				04D2DE2D2F68401A00DF3554 /* Doksli.app */,
 				04D2DE3E2F68401C00DF3554 /* doksliTests.xctest */,
 				04D2DE482F68401C00DF3554 /* doksliUITests.xctest */,
 			);
@@ -95,9 +95,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		04D2DE2C2F68401A00DF3554 /* doksli */ = {
+		04D2DE2C2F68401A00DF3554 /* Doksli */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 04D2DE522F68401C00DF3554 /* Build configuration list for PBXNativeTarget "doksli" */;
+			buildConfigurationList = 04D2DE522F68401C00DF3554 /* Build configuration list for PBXNativeTarget "Doksli" */;
 			buildPhases = (
 				04D2DE292F68401A00DF3554 /* Sources */,
 				04D2DE2A2F68401A00DF3554 /* Frameworks */,
@@ -110,11 +110,11 @@
 			fileSystemSynchronizedGroups = (
 				04D2DE2F2F68401A00DF3554 /* doksli */,
 			);
-			name = doksli;
+			name = Doksli;
 			packageProductDependencies = (
 			);
 			productName = doksli;
-			productReference = 04D2DE2D2F68401A00DF3554 /* doksli.app */;
+			productReference = 04D2DE2D2F68401A00DF3554 /* Doksli.app */;
 			productType = "com.apple.product-type.application";
 		};
 		04D2DE3D2F68401C00DF3554 /* doksliTests */ = {
@@ -200,7 +200,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				04D2DE2C2F68401A00DF3554 /* doksli */,
+				04D2DE2C2F68401A00DF3554 /* Doksli */,
 				04D2DE3D2F68401C00DF3554 /* doksliTests */,
 				04D2DE472F68401C00DF3554 /* doksliUITests */,
 			);
@@ -258,12 +258,12 @@
 /* Begin PBXTargetDependency section */
 		04D2DE402F68401C00DF3554 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 04D2DE2C2F68401A00DF3554 /* doksli */;
+			target = 04D2DE2C2F68401A00DF3554 /* Doksli */;
 			targetProxy = 04D2DE3F2F68401C00DF3554 /* PBXContainerItemProxy */;
 		};
 		04D2DE4A2F68401C00DF3554 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 04D2DE2C2F68401A00DF3554 /* doksli */;
+			target = 04D2DE2C2F68401A00DF3554 /* Doksli */;
 			targetProxy = 04D2DE492F68401C00DF3554 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
@@ -392,20 +392,23 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = doksli/doksli.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"doksli/Preview Content\"";
+				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Doksli;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.firhanram.doksli;
+				PRODUCT_BUNDLE_IDENTIFIER = com.firhanram.Doksli;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -417,20 +420,23 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = doksli/doksli.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"doksli/Preview Content\"";
+				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Doksli;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.firhanram.doksli;
+				PRODUCT_BUNDLE_IDENTIFIER = com.firhanram.Doksli;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -513,7 +519,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		04D2DE522F68401C00DF3554 /* Build configuration list for PBXNativeTarget "doksli" */ = {
+		04D2DE522F68401C00DF3554 /* Build configuration list for PBXNativeTarget "Doksli" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				04D2DE532F68401C00DF3554 /* Debug */,
