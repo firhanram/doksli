@@ -20,6 +20,18 @@ struct SearchResult: Identifiable {
     let breadcrumb: String
 }
 
+// MARK: - RecentSearchItem
+
+struct RecentSearchItem: Identifiable, Equatable {
+    let id: UUID
+    let name: String
+    let url: String?
+    let method: HTTPMethod?
+    let breadcrumb: String
+
+    static func == (lhs: Self, rhs: Self) -> Bool { lhs.id == rhs.id }
+}
+
 // MARK: - SearchableItem
 
 private struct SearchableItem {

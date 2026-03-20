@@ -43,6 +43,8 @@ struct doksliApp: App {
                 Button("Duplicate Request") { appState.duplicateSelectedRequest() }
                     .keyboardShortcut("d", modifiers: .command)
                 Divider()
+                Button("Quick Search") { appState.showQuickSearch = true }
+                    .keyboardShortcut("p", modifiers: .command)
                 Button("Clear Response") { appState.clearResponse() }
                     .keyboardShortcut("k", modifiers: .command)
                 Button("Environments") { appState.showEnvEditor = true }

@@ -31,6 +31,13 @@ struct ContentView: View {
                 newWorkspaceName = ""
             }
         }
+        .overlay {
+            if appState.showQuickSearch {
+                QuickSearchView()
+                    .environmentObject(appState)
+                    .transition(.opacity)
+            }
+        }
         .task {
             appState.loadWorkspaces()
             appState.loadEnvironments()

@@ -61,6 +61,10 @@ class AppState: ObservableObject {
     @Published var lastError: String? = nil
     @Published var showEnvEditor: Bool = false
     @Published var showCreateWorkspace: Bool = false
+    @Published var showQuickSearch: Bool = false
+    @Published var recentSearchSelections: [RecentSearchItem] = []
+    @Published var expandedFolders: Set<UUID> = []
+    @Published var scrollToRequestId: UUID? = nil
     @Published var editingEnvironment: Environment? = nil
     private var responseCache: [UUID: Response] = [:]
     private var errorCache: [UUID: String] = [:]
@@ -75,6 +79,48 @@ class AppState: ObservableObject {
 
     func saveWorkspaces() {
         try? StorageService.saveWorkspaces(workspaces)
+    }
+
+    // MARK: - Recent search
+
+    func addRecentSearch(_ item: RecentSearchItem) {
+        recentSearchSelections.removeAll { $0.id == item.id }
+        recentSearchSelections.insert(item, at: 0)
+        if recentSearchSelections.count > 10 {
+            recentSearchSelections.removeLast()
+        }
+    }
+
+    // MARK: - Navigation helpers
+
+    func revealItem(id: UUID) {
+        guard let workspace = selectedWorkspace else { return }
+        for collection in workspace.collections {
+            var path: [UUID] = []
+            if findPathToItem(id: id, items: collection.items, path: &path) {
+                for folderId in path {
+                    expandedFolders.insert(folderId)
+                }
+                return
+            }
+        }
+    }
+
+    private func findPathToItem(id: UUID, items: [Item], path: inout [UUID]) -> Bool {
+        for item in items {
+            switch item {
+            case .request(let r):
+                if r.id == id { return true }
+            case .folder(let f):
+                path.append(f.id)
+                if f.id == id { return true }
+                if findPathToItem(id: id, items: f.items, path: &path) {
+                    return true
+                }
+                path.removeLast()
+            }
+        }
+        return false
     }
 
     // MARK: - Environment helpers

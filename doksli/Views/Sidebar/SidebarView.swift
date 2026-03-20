@@ -14,7 +14,6 @@ struct SidebarView: View {
     @State private var deletingRequestId: UUID?
     @State private var deletingFolderId: UUID?
     @State private var deletingItemName = ""
-    @State private var expandedFolders: Set<UUID> = []
     @State private var draggedItemId: UUID?
     @State private var showImportError = false
     @State private var importError = ""
@@ -88,13 +87,24 @@ struct SidebarView: View {
             if nonEmpty.isEmpty {
                 emptyCollectionsState
             } else {
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 0) {
-                        ForEach(nonEmpty) { collection in
-                            collectionSection(collection)
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 0) {
+                            ForEach(nonEmpty) { collection in
+                                collectionSection(collection)
+                            }
+                        }
+                        .padding(.vertical, AppSpacing.sm)
+                    }
+                    .onChange(of: appState.scrollToRequestId) { requestId in
+                        guard let requestId = requestId else { return }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            withAnimation {
+                                proxy.scrollTo(requestId, anchor: .center)
+                            }
+                            appState.scrollToRequestId = nil
                         }
                     }
-                    .padding(.vertical, AppSpacing.sm)
                 }
             }
         }
@@ -178,10 +188,10 @@ struct SidebarView: View {
         switch item {
         case .folder(let folder):
             let isExpanded = Binding<Bool>(
-                get: { expandedFolders.contains(folder.id) },
+                get: { appState.expandedFolders.contains(folder.id) },
                 set: { newValue in
-                    if newValue { expandedFolders.insert(folder.id) }
-                    else { expandedFolders.remove(folder.id) }
+                    if newValue { appState.expandedFolders.insert(folder.id) }
+                    else { appState.expandedFolders.remove(folder.id) }
                 }
             )
             return AnyView(
@@ -233,6 +243,7 @@ struct SidebarView: View {
                     return NSItemProvider(object: request.id.uuidString as NSString)
                 }
                 .padding(.leading, AppSpacing.lg)
+                .id(request.id)
             )
         }
     }
@@ -389,7 +400,7 @@ struct SidebarView: View {
         appState.workspaces[wsIndex] = workspace
         appState.selectedWorkspace = workspace
         appState.selectedRequest = newRequest
-        expandedFolders.insert(folder.id)
+        appState.expandedFolders.insert(folder.id)
         appState.saveWorkspaces()
     }
 
@@ -565,7 +576,7 @@ struct SidebarView: View {
 
         appState.workspaces[wsIndex] = workspace
         appState.selectedWorkspace = workspace
-        expandedFolders.insert(targetFolderId)
+        appState.expandedFolders.insert(targetFolderId)
         appState.saveWorkspaces()
         draggedItemId = nil
     }
@@ -750,24 +761,28 @@ struct SidebarView: View {
     }
 
     private func selectSearchResult(_ result: SearchResult) {
-        // Find the request in the workspace tree
         guard let workspace = appState.selectedWorkspace else { return }
 
+        // Expand parent folders
+        appState.revealItem(id: result.id)
+
         if result.method != nil {
-            // It's a request — find and select it
-            let request = findRequest(id: result.id, in: workspace)
-            if let request = request {
+            if let request = findRequest(id: result.id, in: workspace) {
                 appState.selectedRequest = request
             }
+            appState.scrollToRequestId = result.id
         } else {
-            // It's a folder — expand it
-            expandedFolders.insert(result.id)
+            appState.expandedFolders.insert(result.id)
         }
 
-        // Expand parent folders so the item is visible
-        expandParentFolders(for: result.id, in: workspace)
+        appState.addRecentSearch(RecentSearchItem(
+            id: result.id,
+            name: result.name,
+            url: result.url,
+            method: result.method,
+            breadcrumb: result.breadcrumb
+        ))
 
-        // Clear search
         searchQuery = ""
         searchResults = nil
     }
@@ -793,35 +808,6 @@ struct SidebarView: View {
             }
         }
         return nil
-    }
-
-    private func expandParentFolders(for itemId: UUID, in workspace: Workspace) {
-        for collection in workspace.collections {
-            var path: [UUID] = []
-            if findPathToItem(id: itemId, items: collection.items, path: &path) {
-                for folderId in path {
-                    expandedFolders.insert(folderId)
-                }
-                return
-            }
-        }
-    }
-
-    private func findPathToItem(id: UUID, items: [Item], path: inout [UUID]) -> Bool {
-        for item in items {
-            switch item {
-            case .request(let r):
-                if r.id == id { return true }
-            case .folder(let f):
-                path.append(f.id)
-                if f.id == id { return true }
-                if findPathToItem(id: id, items: f.items, path: &path) {
-                    return true
-                }
-                path.removeLast()
-            }
-        }
-        return false
     }
 
     // MARK: - Empty states
