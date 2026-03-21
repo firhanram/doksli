@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 import UniformTypeIdentifiers
 
 // MARK: - SidebarView
@@ -20,6 +21,9 @@ struct SidebarView: View {
     @State private var searchQuery = ""
     @State private var searchResults: [SearchResult]?
     @State private var searchTask: Task<Void, Never>?
+    @State private var searchSelectedIndex = 0
+    @State private var searchKeyMonitor: Any?
+    @FocusState private var isSearchFocused: Bool
     private let searchService = SidebarSearchService()
 
     var body: some View {
@@ -628,12 +632,16 @@ struct SidebarView: View {
             TextField("Search...", text: $searchQuery)
                 .font(AppFonts.body)
                 .textFieldStyle(.plain)
+                .focused($isSearchFocused)
+                .onSubmit { confirmSidebarSearch() }
 
             if !searchQuery.isEmpty {
                 Button {
                     searchQuery = ""
                     searchResults = nil
+                    searchSelectedIndex = 0
                     searchService.clearCache()
+                    removeSidebarKeyMonitor()
                 } label: {
                     Image(systemName: "xmark.circle.fill")
                         .font(AppFonts.body)
@@ -655,9 +663,12 @@ struct SidebarView: View {
                 guard !Task.isCancelled else { return }
                 if newValue.trimmingCharacters(in: .whitespaces).isEmpty {
                     searchResults = nil
+                    removeSidebarKeyMonitor()
                 } else if let workspace = appState.selectedWorkspace {
                     searchResults = searchService.search(query: newValue, in: workspace)
+                    installSidebarKeyMonitor()
                 }
+                searchSelectedIndex = 0
             }
         }
     }
@@ -677,19 +688,42 @@ struct SidebarView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 0) {
-                        ForEach(results) { result in
-                            searchResultRow(result)
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 0) {
+                            ForEach(Array(results.enumerated()), id: \.element.id) { index, result in
+                                searchResultRow(result, index: index)
+                                    .id(index)
+                            }
+                        }
+                        .padding(.vertical, AppSpacing.sm)
+                    }
+                    .onChange(of: searchSelectedIndex) { newIndex in
+                        withAnimation {
+                            proxy.scrollTo(newIndex, anchor: .center)
                         }
                     }
-                    .padding(.vertical, AppSpacing.sm)
                 }
             }
         }
     }
 
-    private func searchResultRow(_ result: SearchResult) -> some View {
+    private func highlightedText(_ text: String, matchedIndices: Set<Int>) -> Text {
+        var result = Text("")
+        for (i, char) in text.enumerated() {
+            if matchedIndices.contains(i) {
+                result = result + Text(String(char))
+                    .foregroundColor(AppColors.brand)
+                    .bold()
+            } else {
+                result = result + Text(String(char))
+                    .foregroundColor(AppColors.textPrimary)
+            }
+        }
+        return result
+    }
+
+    private func searchResultRow(_ result: SearchResult, index: Int) -> some View {
         Button {
             selectSearchResult(result)
         } label: {
@@ -736,41 +770,63 @@ struct SidebarView: View {
 
                 Spacer()
             }
-            .padding(.horizontal, AppSpacing.lg)
+            .padding(.horizontal, AppSpacing.sm)
             .padding(.vertical, AppSpacing.xs)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(appState.selectedRequest?.id == result.id ? AppColors.subtle : Color.clear)
+            .background(index == searchSelectedIndex ? AppColors.subtle : Color.clear)
             .cornerRadius(AppSpacing.radiusCard)
         }
         .buttonStyle(.plain)
     }
 
-    private func highlightedText(_ text: String, matchedIndices: Set<Int>) -> Text {
-        var result = Text("")
-        for (i, char) in text.enumerated() {
-            if matchedIndices.contains(i) {
-                result = result + Text(String(char))
-                    .foregroundColor(AppColors.brand)
-                    .bold()
-            } else {
-                result = result + Text(String(char))
-                    .foregroundColor(AppColors.textPrimary)
+    private func installSidebarKeyMonitor() {
+        guard searchKeyMonitor == nil else { return }
+        searchKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [self] event in
+            switch event.specialKey {
+            case .downArrow:
+                DispatchQueue.main.async {
+                    let count = searchResults?.count ?? 0
+                    if count > 0 {
+                        searchSelectedIndex = min(searchSelectedIndex + 1, count - 1)
+                    }
+                }
+                return nil
+            case .upArrow:
+                DispatchQueue.main.async {
+                    searchSelectedIndex = max(searchSelectedIndex - 1, 0)
+                }
+                return nil
+            default:
+                return event
             }
         }
-        return result
+    }
+
+    private func removeSidebarKeyMonitor() {
+        if let monitor = searchKeyMonitor {
+            NSEvent.removeMonitor(monitor)
+            searchKeyMonitor = nil
+        }
+    }
+
+    private func confirmSidebarSearch() {
+        guard let results = searchResults,
+              searchSelectedIndex < results.count else { return }
+        selectSearchResult(results[searchSelectedIndex])
     }
 
     private func selectSearchResult(_ result: SearchResult) {
         guard let workspace = appState.selectedWorkspace else { return }
 
+        let isRequest = result.method != nil
+
         // Expand parent folders
         appState.revealItem(id: result.id)
 
-        if result.method != nil {
+        if isRequest {
             if let request = findRequest(id: result.id, in: workspace) {
                 appState.selectedRequest = request
             }
-            appState.scrollToRequestId = result.id
         } else {
             appState.expandedFolders.insert(result.id)
         }
@@ -783,8 +839,18 @@ struct SidebarView: View {
             breadcrumb: result.breadcrumb
         ))
 
+        // Clear search first so collectionsTree mounts
         searchQuery = ""
         searchResults = nil
+        searchSelectedIndex = 0
+        removeSidebarKeyMonitor()
+
+        // Delay scroll until collectionsTree is mounted
+        if isRequest {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                appState.scrollToRequestId = result.id
+            }
+        }
     }
 
     private func findRequest(id: UUID, in workspace: Workspace) -> Request? {
