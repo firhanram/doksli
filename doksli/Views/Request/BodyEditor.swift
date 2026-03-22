@@ -14,9 +14,7 @@ struct BodyEditor: View {
             Divider()
                 .foregroundColor(AppColors.subtle)
 
-            ScrollView {
-                bodyContent
-            }
+            bodyContent
         }
     }
 
@@ -56,16 +54,22 @@ struct BodyEditor: View {
     private var bodyContent: some View {
         switch requestBody {
         case .none:
-            placeholderView("This request has no body.")
+            ScrollView {
+                placeholderView("This request has no body.")
+            }
 
         case .json:
             RawBodyEditor(text: rawTextBinding)
 
         case .formData:
-            KVEditor(pairs: formDataBinding, showValueType: true)
+            ScrollView {
+                KVEditor(pairs: formDataBinding, showValueType: true)
+            }
 
         case .urlEncoded:
-            KVEditor(pairs: urlEncodedBinding, showValueType: true, showFileOption: false)
+            ScrollView {
+                KVEditor(pairs: urlEncodedBinding, showValueType: true, showFileOption: false)
+            }
         }
     }
 
@@ -119,27 +123,22 @@ struct BodyEditor: View {
 
 private struct RawBodyEditor: View {
     @Binding var text: String
-    @State private var validationResult = JSONValidator.ValidationResult(
-        isValid: true, errorMessage: nil, errorPosition: nil
-    )
-    @State private var validationWorkItem: DispatchWorkItem?
+    @State private var analysis = JSONEditorBridge.AnalysisResult.empty
+    @State private var analysisWorkItem: DispatchWorkItem?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             editorToolbar
 
-            TextEditor(text: $text)
-                .font(AppFonts.mono)
-                .scrollContentBackground(.hidden)
-                .background(AppColors.surfacePlus)
-                .cornerRadius(AppSpacing.radiusInput)
-                .padding(.horizontal, AppSpacing.lg)
-                .padding(.vertical, AppSpacing.sm)
-                .onChange(of: text) { _ in validateDebounced() }
-                .onAppear { validateDebounced() }
+            GeometryReader { _ in
+                EditorEngine(text: $text, tokens: analysis.tokens, diagnostics: analysis.diagnostics)
+            }
+            .clipped()
+            .onChange(of: text) { _ in analyzeDebounced() }
+            .onAppear { analyzeDebounced() }
 
-            if let errorMessage = validationResult.errorMessage {
-                errorBanner(errorMessage)
+            if let error = analysis.firstError {
+                errorBanner(error)
             }
         }
     }
@@ -153,7 +152,9 @@ private struct RawBodyEditor: View {
             Spacer()
 
             Button {
-                text = JSONValidator.prettyPrint(text)
+                if let formatted = JSONFormatter.prettyPrint(text) {
+                    text = formatted
+                }
             } label: {
                 HStack(spacing: AppSpacing.xs) {
                     Image(systemName: "text.alignleft")
@@ -171,7 +172,7 @@ private struct RawBodyEditor: View {
 
     private var formatButtonEnabled: Bool {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        return !trimmed.isEmpty && validationResult.isValid
+        return !trimmed.isEmpty && analysis.isValid
     }
 
     @ViewBuilder
@@ -179,7 +180,7 @@ private struct RawBodyEditor: View {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty {
             EmptyView()
-        } else if validationResult.isValid {
+        } else if analysis.isValid {
             HStack(spacing: AppSpacing.xs) {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundColor(AppColors.successText)
@@ -217,14 +218,14 @@ private struct RawBodyEditor: View {
         .padding(.bottom, AppSpacing.sm)
     }
 
-    // MARK: - Validation
+    // MARK: - Analysis
 
-    private func validateDebounced() {
-        validationWorkItem?.cancel()
+    private func analyzeDebounced() {
+        analysisWorkItem?.cancel()
         let workItem = DispatchWorkItem { [text] in
-            validationResult = JSONValidator.validate(text)
+            analysis = JSONEditorBridge.analyze(text)
         }
-        validationWorkItem = workItem
+        analysisWorkItem = workItem
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: workItem)
     }
 }

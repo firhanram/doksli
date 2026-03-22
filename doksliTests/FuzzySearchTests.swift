@@ -1,5 +1,5 @@
 import XCTest
-@testable import doksli
+@testable import Doksli
 
 final class FuzzySearchTests: XCTestCase {
 

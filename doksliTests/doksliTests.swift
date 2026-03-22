@@ -6,7 +6,7 @@
 //
 
 import Testing
-@testable import doksli
+@testable import Doksli
 
 struct doksliTests {
 

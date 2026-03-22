@@ -1,6 +1,6 @@
 import Testing
 import Foundation
-@testable import doksli
+@testable import Doksli
 
 // MARK: - Helpers
 
