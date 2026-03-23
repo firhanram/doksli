@@ -168,15 +168,16 @@ struct JSONLinter {
     private static func checkGrammar(_ tokens: [JSONToken],
                                      into diagnostics: inout [JSONDiagnostic]) {
         let sig = tokens.filter { $0.kind != .whitespace }
+        let isValue: (JSONTokenKind) -> Bool = { kind in
+            switch kind {
+            case .string, .number, .boolean, .null, .objectOpen, .arrayOpen:
+                return true
+            default:
+                return false
+            }
+        }
 
-        // Track whether we're inside an object or array via a stack.
-        // true = object context, false = array context
-        var contextStack: [Bool] = []
-
-        // After objectOpen or comma-in-object, the next value token must be a
-        // string key followed by colon — or the object closes immediately.
-        // We validate: inside an object, a value token that is NOT marked isKey is an error,
-        // and a key token not followed by colon is an error.
+        var contextStack: [Bool] = [] // true = object, false = array
         var expectingKey = false
 
         for i in 0..<sig.count {
@@ -199,18 +200,33 @@ struct JSONLinter {
                 expectingKey = false
 
             case .comma:
-                // After comma in object, expect a key
                 if contextStack.last == true {
                     expectingKey = true
                 }
 
             case .colon:
+                // After colon, the next significant token must be a value.
+                let next = i + 1 < sig.count ? sig[i + 1] : nil
+                if let next = next {
+                    if !isValue(next.kind) {
+                        diagnostics.append(JSONDiagnostic(
+                            severity: .error,
+                            message: "Expected value after ':'",
+                            span: token.span
+                        ))
+                    }
+                } else {
+                    diagnostics.append(JSONDiagnostic(
+                        severity: .error,
+                        message: "Expected value after ':'",
+                        span: token.span
+                    ))
+                }
                 expectingKey = false
 
             case .string, .number, .boolean, .null:
                 let inObject = contextStack.last == true
                 if inObject && expectingKey {
-                    // We expect a key here. It must be a string with isKey == true.
                     if token.kind != .string || !token.isKey {
                         diagnostics.append(JSONDiagnostic(
                             severity: .error,

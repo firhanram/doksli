@@ -168,6 +168,17 @@ private func errors(_ input: String) -> [JSONDiagnostic] {
     #expect(hasGrammar)
 }
 
+@Test func missingValueAfterColon() {
+    let input = "{\n    \"amount\": 5000,\n    \"reason\":\n}"
+    let diags = errors(input)
+    let hasMissing = diags.contains { $0.message.contains("Expected value after") }
+    #expect(hasMissing)
+}
+
+@Test func colonFollowedByValueIsValid() {
+    #expect(errors(#"{"a": 1, "b": "hello"}"#).isEmpty)
+}
+
 @Test func valueInArrayIsValid() {
     #expect(errors(#"["asdasd", 42, true]"#).isEmpty)
 }
