@@ -36,11 +36,18 @@ struct JSONEditorBridge {
 
     /// Converts diagnostics to line-keyed dictionary for the gutter.
     /// Keeps highest severity per line (error > warning > hint).
+    /// Uses the gutter's visual line numbering when available.
     static func gutterMarkers(from diagnostics: [JSONDiagnostic],
-                              in string: String) -> [Int: DiagnosticSeverity] {
+                              in string: String,
+                              gutter: GutterView? = nil) -> [Int: DiagnosticSeverity] {
         var result: [Int: DiagnosticSeverity] = [:]
         for diag in diagnostics {
-            let line = GutterView.lineNumber(forUTF16Offset: diag.span.start, in: string)
+            let line: Int
+            if let gutter = gutter {
+                line = gutter.visualLineNumber(forUTF16Offset: diag.span.start)
+            } else {
+                line = GutterView.lineNumber(forUTF16Offset: diag.span.start, in: string)
+            }
             if let existing = result[line] {
                 if priority(diag.severity) > priority(existing) {
                     result[line] = diag.severity

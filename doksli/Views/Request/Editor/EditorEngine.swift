@@ -25,6 +25,7 @@ struct EditorEngine: NSViewRepresentable {
         let textContainer = NSTextContainer()
         textContainer.widthTracksTextView = true
         textContainer.heightTracksTextView = false
+        textContainer.containerSize = NSSize(width: 0, height: CGFloat.greatestFiniteMagnitude)
         layoutManager.addTextContainer(textContainer)
 
         let textView = NSTextView(frame: .zero, textContainer: textContainer)
@@ -40,6 +41,8 @@ struct EditorEngine: NSViewRepresentable {
         textView.textColor = AppColors.NS.textPrimary
         textView.backgroundColor = AppColors.NS.surfacePlus
         textView.textContainerInset = NSSize(width: 4, height: 8)
+        textView.minSize = NSSize(width: 0, height: 0)
+        textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         textView.isVerticallyResizable = true
         textView.isHorizontallyResizable = false
         textView.autoresizingMask = [.width]
@@ -93,6 +96,7 @@ struct EditorEngine: NSViewRepresentable {
         textStorage.replaceCharacters(in: NSRange(location: 0, length: 0), with: text)
         SyntaxHighlighter.apply(tokens: tokens, to: textStorage)
         context.coordinator.isUpdatingFromSwiftUI = false
+        context.coordinator.lastSyncedText = text
 
         // Observe scroll for gutter sync
         if let clipView = scrollView.contentView as? NSClipView {
@@ -114,8 +118,10 @@ struct EditorEngine: NSViewRepresentable {
 
         let coordinator = context.coordinator
 
-        // Update text if changed externally (e.g., format button)
-        if textStorage.string != text && !coordinator.isUpdatingFromBinding {
+        // Update text only for truly external changes (e.g., switching requests).
+        // Skip when text binding matches what we last synced — that means the binding
+        // is just catching up to our debounced sync while the user keeps typing.
+        if textStorage.string != text && text != coordinator.lastSyncedText {
             coordinator.isUpdatingFromSwiftUI = true
             let selectedRanges = textView.selectedRanges
             textStorage.replaceCharacters(
@@ -132,6 +138,7 @@ struct EditorEngine: NSViewRepresentable {
             }
             coordinator.isUpdatingFromSwiftUI = false
             coordinator.lastAppliedTokens = tokens
+            coordinator.lastSyncedText = text
         }
 
         // Apply highlighting only when tokens actually change (after debounced analysis)
@@ -142,7 +149,7 @@ struct EditorEngine: NSViewRepresentable {
 
         // Update gutter
         if let gutter = coordinator.gutterView {
-            let markers = JSONEditorBridge.gutterMarkers(from: diagnostics, in: text)
+            let markers = JSONEditorBridge.gutterMarkers(from: diagnostics, in: text, gutter: gutter)
             gutter.diagnosticsByLine = markers
 
             // Update gutter width if line count changed
@@ -169,8 +176,9 @@ struct EditorEngine: NSViewRepresentable {
         /// Prevents feedback loop when SwiftUI updates the text binding.
         var isUpdatingFromSwiftUI = false
 
-        /// Prevents feedback loop when binding update triggers updateNSView.
-        var isUpdatingFromBinding = false
+        /// Tracks the last text we synced to the SwiftUI binding.
+        /// Used to distinguish our own sync from truly external text changes.
+        var lastSyncedText: String = ""
 
         /// Last tokens applied to avoid redundant highlighting.
         var lastAppliedTokens: [JSONToken] = []
@@ -203,9 +211,9 @@ struct EditorEngine: NSViewRepresentable {
             let workItem = DispatchWorkItem { [weak self] in
                 guard let self, let textView = self.textView,
                       let textStorage = textView.textStorage else { return }
-                self.isUpdatingFromBinding = true
-                self.parent.text = textStorage.string
-                self.isUpdatingFromBinding = false
+                let current = textStorage.string
+                self.lastSyncedText = current
+                self.parent.text = current
             }
             bindingSyncWorkItem = workItem
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.15, execute: workItem)
@@ -288,6 +296,11 @@ struct EditorEngine: NSViewRepresentable {
             // Debounce the SwiftUI binding update to avoid blocking input
             scheduleBindingSync()
 
+            // Ensure cursor stays visible after text changes
+            if let textView = textView {
+                textView.scrollRangeToVisible(textView.selectedRange())
+            }
+
             gutterView?.invalidate()
         }
 
@@ -313,8 +326,8 @@ struct EditorEngine: NSViewRepresentable {
             }
             let currentIndent = nsString.substring(with: NSRange(location: lineStart, length: wsEnd - lineStart))
 
-            // Check char before cursor (skip whitespace)
-            let before = nonWhitespaceChar(in: nsString, before: pos)
+            // Check char before cursor on this line only
+            let before = nonWhitespaceChar(in: nsString, before: pos, limit: lineStart)
             // Check char after cursor (skip whitespace)
             let after = nonWhitespaceChar(in: nsString, after: pos)
 
@@ -330,20 +343,23 @@ struct EditorEngine: NSViewRepresentable {
                     textView.replaceCharacters(in: textView.selectedRange(), with: insertion)
                     textView.didChangeText()
                     textView.setSelectedRange(NSRange(location: cursorPos, length: 0))
+                    textView.scrollRangeToVisible(NSRange(location: cursorPos, length: 0))
                 }
             } else {
                 let indent = shouldIncrease ? currentIndent + "    " : currentIndent
                 let insertion = "\n" + indent
                 textView.insertText(insertion, replacementRange: textView.selectedRange())
+                textView.scrollRangeToVisible(textView.selectedRange())
             }
 
             return true
         }
 
         /// Returns the first non-whitespace character before `location`, or nil.
-        private func nonWhitespaceChar(in nsString: NSString, before location: Int) -> Character? {
+        /// When `limit` is provided, stops searching at that position (inclusive).
+        private func nonWhitespaceChar(in nsString: NSString, before location: Int, limit: Int = 0) -> Character? {
             var i = location - 1
-            while i >= 0 {
+            while i >= limit {
                 let c = nsString.character(at: i)
                 if c != 0x20 && c != 0x09 && c != 0x0A && c != 0x0D { // not space/tab/newline
                     return Character(UnicodeScalar(c)!)
