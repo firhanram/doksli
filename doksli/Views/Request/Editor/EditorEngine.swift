@@ -314,6 +314,9 @@ struct EditorEngine: NSViewRepresentable {
         // MARK: - Auto-indent helpers
 
         private func handleNewline(_ textView: NSTextView) -> Bool {
+            // Break undo coalescing so each Enter is a separate undo step
+            textView.breakUndoCoalescing()
+
             let nsString = (textView.string as NSString)
             let pos = textView.selectedRange().location
 
@@ -323,7 +326,7 @@ struct EditorEngine: NSViewRepresentable {
             var wsEnd = lineStart
             while wsEnd < nsString.length {
                 let c = nsString.character(at: wsEnd)
-                if c == 0x20 || c == 0x09 { wsEnd += 1 } else { break } // space or tab
+                if c == 0x20 || c == 0x09 { wsEnd += 1 } else { break }
             }
             let currentIndent = nsString.substring(with: NSRange(location: lineStart, length: wsEnd - lineStart))
 
