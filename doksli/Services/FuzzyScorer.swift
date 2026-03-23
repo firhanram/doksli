@@ -19,6 +19,7 @@ final class FuzzyScorer {
     private static let separatorBoundary = 5
     private static let camelCaseTransition = 2
     private static let sameCase = 1
+    private static let contiguityBonus = 10
     private static let exactIdentity = 1 << 18  // 262144
 
     private static let separators: Set<Character> = ["/", "\\", "-", "_", ".", " "]
@@ -89,41 +90,15 @@ final class FuzzyScorer {
                     let prevScore = dp[i - 1][j - 1]
                     guard prevScore != Int.min else { continue }
 
-                    var bonus = Self.baseMatch
-
-                    // Consecutive match bonus
-                    let streak = consecutive[i - 1][j - 1] + 1
-                    if streak <= 3 {
-                        bonus += Self.consecutiveShort
-                    } else {
-                        bonus += Self.consecutiveLong
-                    }
-
-                    // Start-of-word bonus
-                    let targetIdx = j - 1
-                    if targetIdx == 0 || Self.separators.contains(targetOriginal[targetIdx - 1]) {
-                        bonus += Self.startOfWord
-                    }
-
-                    // Separator boundary bonus
-                    if targetIdx > 0 && Self.separators.contains(targetOriginal[targetIdx - 1]) {
-                        bonus += Self.separatorBoundary
-                    }
-
-                    // CamelCase transition bonus
-                    if targetIdx > 0 && targetOriginal[targetIdx].isUppercase && targetOriginal[targetIdx - 1].isLowercase {
-                        bonus += Self.camelCaseTransition
-                    }
-
-                    // Same case bonus
-                    if queryOriginal[i - 1] == targetOriginal[j - 1] {
-                        bonus += Self.sameCase
-                    }
+                    let bonus = charBonus(
+                        queryIdx: i - 1, targetIdx: j - 1, streak: consecutive[i - 1][j - 1] + 1,
+                        queryOriginal: queryOriginal, targetOriginal: targetOriginal
+                    )
 
                     let matchScore = prevScore + bonus
                     if matchScore > dp[i][j] {
                         dp[i][j] = matchScore
-                        consecutive[i][j] = streak
+                        consecutive[i][j] = consecutive[i - 1][j - 1] + 1
                         choice[i][j] = j - 1  // mark this position as a match
                     }
                 }
@@ -134,9 +109,109 @@ final class FuzzyScorer {
         guard dp[m][n] != Int.min else { return nil }
 
         // Backtrack to find matched indices
-        let matchedIndices = backtrack(dp: dp, choice: choice, queryChars: queryChars, targetChars: targetChars, m: m, n: n)
+        let dpIndices = backtrack(dp: dp, choice: choice, queryChars: queryChars, targetChars: targetChars, m: m, n: n)
+        let dpResult = FuzzyMatch(score: dp[m][n], matchedIndices: dpIndices)
 
-        return FuzzyMatch(score: dp[m][n], matchedIndices: matchedIndices)
+        // Also find best consecutive substring match — the DP may miss compact
+        // matches in favor of scattered word-boundary matches
+        let consecutiveResult = bestConsecutiveMatch(
+            queryChars: queryChars, targetChars: targetChars,
+            queryOriginal: queryOriginal, targetOriginal: targetOriginal,
+            m: m, n: n
+        )
+
+        // Return whichever scores higher
+        if let consec = consecutiveResult, consec.score > dpResult.score {
+            return consec
+        }
+        return dpResult
+    }
+
+    // MARK: - Consecutive substring match
+
+    /// Finds the best position where the query appears as a consecutive substring
+    /// (case-insensitive) and scores it with a contiguity bonus.
+    private func bestConsecutiveMatch(
+        queryChars: [Character], targetChars: [Character],
+        queryOriginal: [Character], targetOriginal: [Character],
+        m: Int, n: Int
+    ) -> FuzzyMatch? {
+        guard m <= n else { return nil }
+
+        var best: FuzzyMatch?
+
+        for start in 0...(n - m) {
+            // Check if query matches consecutively at this position
+            var matches = true
+            for k in 0..<m {
+                if queryChars[k] != targetChars[start + k] {
+                    matches = false
+                    break
+                }
+            }
+            guard matches else { continue }
+
+            // Score this consecutive match
+            var score = 0
+            var indices: [Int] = []
+            for k in 0..<m {
+                let targetIdx = start + k
+                let streak = k + 1
+                let bonus = charBonus(
+                    queryIdx: k, targetIdx: targetIdx, streak: streak,
+                    queryOriginal: queryOriginal, targetOriginal: targetOriginal
+                )
+                score += bonus
+                indices.append(targetIdx)
+            }
+
+            // Add contiguity bonus for being a consecutive match
+            score += m * Self.contiguityBonus
+
+            if best == nil || score > best!.score {
+                best = FuzzyMatch(score: score, matchedIndices: indices)
+            }
+        }
+
+        return best
+    }
+
+    // MARK: - Per-character bonus
+
+    private func charBonus(
+        queryIdx: Int, targetIdx: Int, streak: Int,
+        queryOriginal: [Character], targetOriginal: [Character]
+    ) -> Int {
+        var bonus = Self.baseMatch
+
+        // Consecutive match bonus
+        if streak <= 3 {
+            bonus += Self.consecutiveShort
+        } else {
+            bonus += Self.consecutiveLong
+        }
+
+        // Start-of-word bonus
+        if targetIdx == 0 || Self.separators.contains(targetOriginal[targetIdx - 1]) {
+            bonus += Self.startOfWord
+        }
+
+        // Separator boundary bonus
+        if targetIdx > 0 && Self.separators.contains(targetOriginal[targetIdx - 1]) {
+            bonus += Self.separatorBoundary
+        }
+
+        // CamelCase transition bonus
+        if targetIdx > 0 && targetOriginal[targetIdx].isUppercase && targetOriginal[targetIdx - 1].isLowercase {
+            bonus += Self.camelCaseTransition
+        }
+
+        // Same case bonus
+        if queryOriginal[queryIdx] == targetOriginal[targetIdx] {
+            bonus += Self.sameCase
+        }
+
+        return bonus
     }
 
     private func backtrack(dp: [[Int]], choice: [[Int]], queryChars: [Character], targetChars: [Character], m: Int, n: Int) -> [Int] {

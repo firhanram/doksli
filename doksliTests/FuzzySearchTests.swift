@@ -117,6 +117,14 @@ final class FuzzySearchTests: XCTestCase {
         XCTAssertNotNil(result)
     }
 
+    func testCompactMatchBeatsScatteredWordBoundary() {
+        let compact = scorer.score(query: "GET", target: "GET card token")
+        let scattered = scorer.score(query: "GET", target: "Charge Epay BRI Payment Transaction")
+        XCTAssertNotNil(compact)
+        XCTAssertNotNil(scattered)
+        XCTAssertGreaterThan(compact!.score, scattered!.score)
+    }
+
     func testURLSlashSeparator() {
         let result = scorer.score(query: "users", target: "api/users")
         XCTAssertNotNil(result)
