@@ -172,7 +172,76 @@ struct EditorEngine: NSViewRepresentable {
             self.parent = parent
         }
 
-        // MARK: NSTextViewDelegate
+        // MARK: NSTextViewDelegate — commands
+
+        func textView(_ textView: NSTextView, doCommandBy selector: Selector) -> Bool {
+            if selector == #selector(NSResponder.insertNewline(_:)) {
+                return handleNewline(textView)
+            }
+            if selector == #selector(NSResponder.insertTab(_:)) {
+                textView.insertText("    ", replacementRange: textView.selectedRange())
+                return true
+            }
+            return false
+        }
+
+        // MARK: NSTextViewDelegate — auto-close pairs
+
+        func textView(_ textView: NSTextView, shouldChangeTextIn range: NSRange,
+                       replacementString replacement: String?) -> Bool {
+            guard let replacement = replacement, replacement.count == 1,
+                  let ch = replacement.first else { return true }
+
+            let nsString = (textView.string as NSString)
+            let nextChar: Character? = range.location < nsString.length
+                ? Character(UnicodeScalar(nsString.character(at: range.location))!)
+                : nil
+
+            // Skip-over closing character
+            if (ch == "}" || ch == "]" || ch == "\""), nextChar == ch, range.length == 0 {
+                textView.setSelectedRange(NSRange(location: range.location + 1, length: 0))
+                return false
+            }
+
+            // Auto-close pairs
+            let pair: String? = {
+                switch ch {
+                case "{": return "{}"
+                case "[": return "[]"
+                case "\"":
+                    // Don't auto-close if inside a string token
+                    if isInsideString(at: range.location) { return nil }
+                    return "\"\""
+                default: return nil
+                }
+            }()
+
+            if let pair = pair, range.length == 0 {
+                if textView.shouldChangeText(in: range, replacementString: pair) {
+                    textView.replaceCharacters(in: range, with: pair)
+                    textView.didChangeText()
+                    textView.setSelectedRange(NSRange(location: range.location + 1, length: 0))
+                }
+                return false
+            }
+
+            // Auto-dedent closing bracket at line start
+            if (ch == "}" || ch == "]"), range.length == 0 {
+                let lineStart = nsString.lineRange(for: NSRange(location: range.location, length: 0)).location
+                let prefix = nsString.substring(with: NSRange(location: lineStart, length: range.location - lineStart))
+                if prefix.allSatisfy({ $0 == " " }) && prefix.count >= 4 {
+                    let dedentRange = NSRange(location: lineStart, length: min(4, prefix.count))
+                    if textView.shouldChangeText(in: dedentRange, replacementString: "") {
+                        textView.replaceCharacters(in: dedentRange, with: "")
+                        textView.didChangeText()
+                    }
+                }
+            }
+
+            return true
+        }
+
+        // MARK: NSTextViewDelegate — text changed
 
         func textDidChange(_ notification: Notification) {
             guard !isUpdatingFromSwiftUI,
@@ -190,6 +259,86 @@ struct EditorEngine: NSViewRepresentable {
 
         @objc func scrollViewDidScroll(_ notification: Notification) {
             gutterView?.invalidate()
+        }
+
+        // MARK: - Auto-indent helpers
+
+        private func handleNewline(_ textView: NSTextView) -> Bool {
+            let nsString = (textView.string as NSString)
+            let pos = textView.selectedRange().location
+
+            // Get current line's leading whitespace
+            let lineRange = nsString.lineRange(for: NSRange(location: pos, length: 0))
+            let lineStart = lineRange.location
+            var wsEnd = lineStart
+            while wsEnd < nsString.length {
+                let c = nsString.character(at: wsEnd)
+                if c == 0x20 || c == 0x09 { wsEnd += 1 } else { break } // space or tab
+            }
+            let currentIndent = nsString.substring(with: NSRange(location: lineStart, length: wsEnd - lineStart))
+
+            // Check char before cursor (skip whitespace)
+            let before = nonWhitespaceChar(in: nsString, before: pos)
+            // Check char after cursor (skip whitespace)
+            let after = nonWhitespaceChar(in: nsString, after: pos)
+
+            let shouldIncrease = (before == "{" || before == "[")
+            let shouldSplit = shouldIncrease && (after == "}" || after == "]")
+
+            if shouldSplit {
+                // Insert: \n + indent+4 + \n + indent, cursor on middle line
+                let innerIndent = currentIndent + "    "
+                let insertion = "\n" + innerIndent + "\n" + currentIndent
+                let cursorPos = pos + 1 + innerIndent.count // after first \n + innerIndent
+                if textView.shouldChangeText(in: textView.selectedRange(), replacementString: insertion) {
+                    textView.replaceCharacters(in: textView.selectedRange(), with: insertion)
+                    textView.didChangeText()
+                    textView.setSelectedRange(NSRange(location: cursorPos, length: 0))
+                }
+            } else {
+                let indent = shouldIncrease ? currentIndent + "    " : currentIndent
+                let insertion = "\n" + indent
+                textView.insertText(insertion, replacementRange: textView.selectedRange())
+            }
+
+            return true
+        }
+
+        /// Returns the first non-whitespace character before `location`, or nil.
+        private func nonWhitespaceChar(in nsString: NSString, before location: Int) -> Character? {
+            var i = location - 1
+            while i >= 0 {
+                let c = nsString.character(at: i)
+                if c != 0x20 && c != 0x09 && c != 0x0A && c != 0x0D { // not space/tab/newline
+                    return Character(UnicodeScalar(c)!)
+                }
+                i -= 1
+            }
+            return nil
+        }
+
+        /// Returns the first non-whitespace character at or after `location`, or nil.
+        private func nonWhitespaceChar(in nsString: NSString, after location: Int) -> Character? {
+            var i = location
+            while i < nsString.length {
+                let c = nsString.character(at: i)
+                if c != 0x20 && c != 0x09 && c != 0x0A && c != 0x0D {
+                    return Character(UnicodeScalar(c)!)
+                }
+                i += 1
+            }
+            return nil
+        }
+
+        /// Checks if `location` is inside a string token.
+        private func isInsideString(at location: Int) -> Bool {
+            for token in parent.tokens where token.kind == .string {
+                // Inside means between the opening and closing quotes (exclusive of both)
+                if location > token.span.start && location < token.span.end {
+                    return true
+                }
+            }
+            return false
         }
     }
 }

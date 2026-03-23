@@ -148,6 +148,44 @@ private func errors(_ input: String) -> [JSONDiagnostic] {
     #expect(hasUnexpected)
 }
 
+// MARK: - Grammar (object values without keys)
+
+@Test func bareValueInObject() {
+    let diags = errors(#"{"a": 1, "asdasd"}"#)
+    let hasGrammar = diags.contains { $0.message.contains("Expected a key") }
+    #expect(hasGrammar)
+}
+
+@Test func bareNumberInObject() {
+    let diags = errors(#"{"a": 1, 42}"#)
+    let hasGrammar = diags.contains { $0.message.contains("Expected a key") }
+    #expect(hasGrammar)
+}
+
+@Test func bareBooleanInObject() {
+    let diags = errors(#"{"a": 1, true}"#)
+    let hasGrammar = diags.contains { $0.message.contains("Expected a key") }
+    #expect(hasGrammar)
+}
+
+@Test func valueInArrayIsValid() {
+    #expect(errors(#"["asdasd", 42, true]"#).isEmpty)
+}
+
+@Test func nestedObjectBareValue() {
+    let input = """
+    {
+        "a": {
+            "b": 1
+        },
+        "asdasd"
+    }
+    """
+    let diags = errors(input)
+    let hasGrammar = diags.contains { $0.message.contains("Expected a key") }
+    #expect(hasGrammar)
+}
+
 // MARK: - Multiple errors
 
 @Test func multipleErrorsInOneDocument() {

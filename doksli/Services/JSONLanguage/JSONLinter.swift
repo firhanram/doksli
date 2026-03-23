@@ -28,6 +28,7 @@ struct JSONLinter {
         checkStructuralErrors(tokens, into: &diagnostics)
         checkTrailingCommas(tokens, into: &diagnostics)
         checkDuplicateKeys(tokens, source: source, into: &diagnostics)
+        checkGrammar(tokens, into: &diagnostics)
         return diagnostics
     }
 
@@ -156,6 +157,70 @@ struct JSONLinter {
                 } else {
                     scopeStack[scopeStack.count - 1].insert(keyText)
                 }
+            default:
+                break
+            }
+        }
+    }
+
+    // MARK: - Grammar (object members must be key:value pairs)
+
+    private static func checkGrammar(_ tokens: [JSONToken],
+                                     into diagnostics: inout [JSONDiagnostic]) {
+        let sig = tokens.filter { $0.kind != .whitespace }
+
+        // Track whether we're inside an object or array via a stack.
+        // true = object context, false = array context
+        var contextStack: [Bool] = []
+
+        // After objectOpen or comma-in-object, the next value token must be a
+        // string key followed by colon — or the object closes immediately.
+        // We validate: inside an object, a value token that is NOT marked isKey is an error,
+        // and a key token not followed by colon is an error.
+        var expectingKey = false
+
+        for i in 0..<sig.count {
+            let token = sig[i]
+            switch token.kind {
+            case .objectOpen:
+                contextStack.append(true)
+                expectingKey = true
+
+            case .arrayOpen:
+                contextStack.append(false)
+                expectingKey = false
+
+            case .objectClose:
+                if !contextStack.isEmpty { contextStack.removeLast() }
+                expectingKey = false
+
+            case .arrayClose:
+                if !contextStack.isEmpty { contextStack.removeLast() }
+                expectingKey = false
+
+            case .comma:
+                // After comma in object, expect a key
+                if contextStack.last == true {
+                    expectingKey = true
+                }
+
+            case .colon:
+                expectingKey = false
+
+            case .string, .number, .boolean, .null:
+                let inObject = contextStack.last == true
+                if inObject && expectingKey {
+                    // We expect a key here. It must be a string with isKey == true.
+                    if token.kind != .string || !token.isKey {
+                        diagnostics.append(JSONDiagnostic(
+                            severity: .error,
+                            message: "Expected a key (string) but found value",
+                            span: token.span
+                        ))
+                    }
+                    expectingKey = false
+                }
+
             default:
                 break
             }
