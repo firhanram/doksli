@@ -189,12 +189,10 @@ private struct RawBodyEditor: View {
                 .lineLimit(2)
         }
         .foregroundColor(AppColors.errorText)
-        .padding(AppSpacing.sm)
+        .padding(.horizontal, AppSpacing.lg)
+        .padding(.vertical, AppSpacing.sm)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(AppColors.errorBg)
-        .cornerRadius(AppSpacing.radiusBadge)
-        .padding(.horizontal, AppSpacing.lg)
-        .padding(.bottom, AppSpacing.sm)
     }
 
     // MARK: - Analysis
