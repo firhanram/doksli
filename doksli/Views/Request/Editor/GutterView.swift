@@ -110,11 +110,11 @@ final class GutterView: NSView {
         }
         if let image = NSImage(systemSymbolName: iconName, accessibilityDescription: nil) {
             let config = NSImage.SymbolConfiguration(pointSize: 10, weight: .regular)
+                .applying(.init(paletteColors: [iconColor]))
             let tinted = image.withSymbolConfiguration(config) ?? image
             let iconSize = NSSize(width: 12, height: 12)
             let iconY = y + (lineHeight - iconSize.height) / 2
             let iconRect = NSRect(x: 2, y: iconY, width: iconSize.width, height: iconSize.height)
-            iconColor.set()
             tinted.draw(in: iconRect, from: .zero, operation: .sourceOver, fraction: 1.0)
         }
     }
