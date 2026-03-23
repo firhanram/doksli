@@ -148,31 +148,10 @@ private struct RawBodyEditor: View {
     private var editorToolbar: some View {
         HStack(spacing: AppSpacing.sm) {
             validationIndicator
-
             Spacer()
-
-            Button {
-                if let formatted = JSONFormatter.prettyPrint(text) {
-                    text = formatted
-                }
-            } label: {
-                HStack(spacing: AppSpacing.xs) {
-                    Image(systemName: "text.alignleft")
-                    Text("Format")
-                        .font(AppFonts.eyebrow)
-                }
-                .foregroundColor(formatButtonEnabled ? AppColors.brand : AppColors.muted)
-            }
-            .buttonStyle(.plain)
-            .disabled(!formatButtonEnabled)
         }
         .padding(.horizontal, AppSpacing.lg)
         .padding(.vertical, AppSpacing.sm)
-    }
-
-    private var formatButtonEnabled: Bool {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        return !trimmed.isEmpty && analysis.isValid
     }
 
     @ViewBuilder
