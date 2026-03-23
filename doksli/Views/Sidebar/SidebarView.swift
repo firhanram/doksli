@@ -213,6 +213,10 @@ struct SidebarView: View {
                             Spacer()
                             folderActionsMenu(folder)
                         }
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            isExpanded.wrappedValue.toggle()
+                        }
                         .contextMenu { folderContextMenu(folder) }
                     }
                 }
