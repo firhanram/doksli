@@ -131,9 +131,13 @@ struct EditorEngine: NSViewRepresentable {
                 }
             }
             coordinator.isUpdatingFromSwiftUI = false
-        } else {
-            // Just update highlighting and diagnostics
-            SyntaxHighlighter.apply(tokens: tokens, to: textStorage)
+            coordinator.lastAppliedTokens = tokens
+        }
+
+        // Apply highlighting only when tokens actually change (after debounced analysis)
+        if coordinator.lastAppliedTokens != tokens {
+            coordinator.lastAppliedTokens = tokens
+            coordinator.scheduleHighlight()
         }
 
         // Update gutter
@@ -168,8 +172,43 @@ struct EditorEngine: NSViewRepresentable {
         /// Prevents feedback loop when binding update triggers updateNSView.
         var isUpdatingFromBinding = false
 
+        /// Last tokens applied to avoid redundant highlighting.
+        var lastAppliedTokens: [JSONToken] = []
+
+        /// Debounced highlight work item.
+        private var highlightWorkItem: DispatchWorkItem?
+
+        /// Debounced binding sync work item.
+        private var bindingSyncWorkItem: DispatchWorkItem?
+
         init(parent: EditorEngine) {
             self.parent = parent
+        }
+
+        /// Schedules syntax highlighting with a short debounce to avoid blocking input.
+        func scheduleHighlight() {
+            highlightWorkItem?.cancel()
+            let workItem = DispatchWorkItem { [weak self] in
+                guard let self, let textView = self.textView,
+                      let textStorage = textView.textStorage else { return }
+                SyntaxHighlighter.apply(tokens: self.lastAppliedTokens, to: textStorage)
+            }
+            highlightWorkItem = workItem
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05, execute: workItem)
+        }
+
+        /// Debounces the SwiftUI binding update to avoid re-render on every keystroke.
+        private func scheduleBindingSync() {
+            bindingSyncWorkItem?.cancel()
+            let workItem = DispatchWorkItem { [weak self] in
+                guard let self, let textView = self.textView,
+                      let textStorage = textView.textStorage else { return }
+                self.isUpdatingFromBinding = true
+                self.parent.text = textStorage.string
+                self.isUpdatingFromBinding = false
+            }
+            bindingSyncWorkItem = workItem
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15, execute: workItem)
         }
 
         // MARK: NSTextViewDelegate — commands
@@ -244,13 +283,10 @@ struct EditorEngine: NSViewRepresentable {
         // MARK: NSTextViewDelegate — text changed
 
         func textDidChange(_ notification: Notification) {
-            guard !isUpdatingFromSwiftUI,
-                  let textView = textView,
-                  let textStorage = textView.textStorage else { return }
+            guard !isUpdatingFromSwiftUI else { return }
 
-            isUpdatingFromBinding = true
-            parent.text = textStorage.string
-            isUpdatingFromBinding = false
+            // Debounce the SwiftUI binding update to avoid blocking input
+            scheduleBindingSync()
 
             gutterView?.invalidate()
         }
