@@ -324,7 +324,18 @@ struct EditorEngine: NSViewRepresentable {
                 let c = nsString.character(at: wsEnd)
                 if c == 0x20 || c == 0x09 { wsEnd += 1 } else { break } // space or tab
             }
-            let currentIndent = nsString.substring(with: NSRange(location: lineStart, length: wsEnd - lineStart))
+            var currentIndent = nsString.substring(with: NSRange(location: lineStart, length: wsEnd - lineStart))
+
+            // If the portion of the line before the cursor is whitespace-only, don't carry indent
+            let beforeCursor = nsString.substring(with: NSRange(location: lineStart, length: pos - lineStart))
+            if beforeCursor.allSatisfy({ $0 == " " || $0 == "\t" }) && !beforeCursor.isEmpty {
+                // Check if the whole line is blank (no content after cursor on this line either)
+                let lineEnd = min(NSMaxRange(lineRange), nsString.length)
+                let afterCursorOnLine = nsString.substring(with: NSRange(location: pos, length: lineEnd - pos))
+                if afterCursorOnLine.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    currentIndent = ""
+                }
+            }
 
             // Check char before cursor on this line only
             let before = nonWhitespaceChar(in: nsString, before: pos, limit: lineStart)
