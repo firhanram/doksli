@@ -96,7 +96,6 @@ struct EditorEngine: NSViewRepresentable {
         textStorage.replaceCharacters(in: NSRange(location: 0, length: 0), with: text)
         SyntaxHighlighter.apply(tokens: tokens, to: textStorage)
         context.coordinator.isUpdatingFromSwiftUI = false
-        context.coordinator.lastSyncedText = text
 
         // Observe scroll for gutter sync
         if let clipView = scrollView.contentView as? NSClipView {
@@ -118,10 +117,12 @@ struct EditorEngine: NSViewRepresentable {
 
         let coordinator = context.coordinator
 
-        // Update text only for truly external changes (e.g., switching requests).
-        // Skip when text binding matches what we last synced — that means the binding
-        // is just catching up to our debounced sync while the user keeps typing.
-        if textStorage.string != text && text != coordinator.lastSyncedText {
+        // Sync check: when textStorage matches the binding, pending edits are resolved.
+        if textStorage.string == text {
+            coordinator.hasPendingEdits = false
+        } else if !coordinator.hasPendingEdits {
+            // No pending user edits and text differs — this is an external change
+            // (e.g., switching requests). Replace the editor content.
             coordinator.isUpdatingFromSwiftUI = true
             let selectedRanges = textView.selectedRanges
             textStorage.replaceCharacters(
@@ -129,7 +130,6 @@ struct EditorEngine: NSViewRepresentable {
                 with: text
             )
             SyntaxHighlighter.apply(tokens: tokens, to: textStorage)
-            // Restore selection if possible
             for range in selectedRanges {
                 let r = range.rangeValue
                 if r.location + r.length <= textStorage.length {
@@ -138,7 +138,6 @@ struct EditorEngine: NSViewRepresentable {
             }
             coordinator.isUpdatingFromSwiftUI = false
             coordinator.lastAppliedTokens = tokens
-            coordinator.lastSyncedText = text
         }
 
         // Apply highlighting only when tokens actually change (after debounced analysis)
@@ -176,9 +175,9 @@ struct EditorEngine: NSViewRepresentable {
         /// Prevents feedback loop when SwiftUI updates the text binding.
         var isUpdatingFromSwiftUI = false
 
-        /// Tracks the last text we synced to the SwiftUI binding.
-        /// Used to distinguish our own sync from truly external text changes.
-        var lastSyncedText: String = ""
+        /// True when user has edited text that hasn't been fully synced to the binding yet.
+        /// Prevents updateNSView from replacing text with a stale binding value.
+        var hasPendingEdits = false
 
         /// Last tokens applied to avoid redundant highlighting.
         var lastAppliedTokens: [JSONToken] = []
@@ -211,9 +210,7 @@ struct EditorEngine: NSViewRepresentable {
             let workItem = DispatchWorkItem { [weak self] in
                 guard let self, let textView = self.textView,
                       let textStorage = textView.textStorage else { return }
-                let current = textStorage.string
-                self.lastSyncedText = current
-                self.parent.text = current
+                self.parent.text = textStorage.string
             }
             bindingSyncWorkItem = workItem
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.15, execute: workItem)
@@ -293,6 +290,10 @@ struct EditorEngine: NSViewRepresentable {
         func textDidChange(_ notification: Notification) {
             guard !isUpdatingFromSwiftUI else { return }
 
+            // Mark that we have unsynced edits — prevents updateNSView from
+            // replacing text with a stale binding value during rapid typing.
+            hasPendingEdits = true
+
             // Debounce the SwiftUI binding update to avoid blocking input
             scheduleBindingSync()
 
@@ -324,18 +325,7 @@ struct EditorEngine: NSViewRepresentable {
                 let c = nsString.character(at: wsEnd)
                 if c == 0x20 || c == 0x09 { wsEnd += 1 } else { break } // space or tab
             }
-            var currentIndent = nsString.substring(with: NSRange(location: lineStart, length: wsEnd - lineStart))
-
-            // If the portion of the line before the cursor is whitespace-only, don't carry indent
-            let beforeCursor = nsString.substring(with: NSRange(location: lineStart, length: pos - lineStart))
-            if beforeCursor.allSatisfy({ $0 == " " || $0 == "\t" }) && !beforeCursor.isEmpty {
-                // Check if the whole line is blank (no content after cursor on this line either)
-                let lineEnd = min(NSMaxRange(lineRange), nsString.length)
-                let afterCursorOnLine = nsString.substring(with: NSRange(location: pos, length: lineEnd - pos))
-                if afterCursorOnLine.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    currentIndent = ""
-                }
-            }
+            let currentIndent = nsString.substring(with: NSRange(location: lineStart, length: wsEnd - lineStart))
 
             // Check char before cursor on this line only
             let before = nonWhitespaceChar(in: nsString, before: pos, limit: lineStart)
