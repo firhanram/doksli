@@ -37,6 +37,15 @@ struct doksliApp: App {
                     .keyboardShortcut("w", modifiers: [.command, .shift])
             }
 
+            CommandGroup(after: .sidebar) {
+                Button("Toggle Sidebar") {
+                    NSApp.keyWindow?.firstResponder?.tryToPerform(
+                        #selector(NSSplitViewController.toggleSidebar(_:)), with: nil
+                    )
+                }
+                .keyboardShortcut("b", modifiers: .command)
+            }
+
             CommandMenu("Request") {
                 Button("Send Request") { appState.sendCurrentRequest() }
                     .keyboardShortcut(.return, modifiers: .command)
