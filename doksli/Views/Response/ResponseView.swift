@@ -131,7 +131,6 @@ struct ResponseView: View {
         guard !query.isEmpty else {
             searchMatches = []
             currentMatchIndex = 0
-            restoreExpandedPaths()
             scrollToPath = nil
             return
         }
@@ -260,7 +259,7 @@ struct ResponseView: View {
         searchMatches = []
         currentMatchIndex = 0
         scrollToPath = nil
-        restoreExpandedPaths()
+        savedExpandedPaths = nil
     }
 
     // MARK: - Cmd+F monitor
