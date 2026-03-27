@@ -1,5 +1,11 @@
 import SwiftUI
 
+// MARK: - AppColorMode
+
+enum AppColorMode: String, CaseIterable {
+    case system, light, dark
+}
+
 // MARK: - AppState
 
 @MainActor
@@ -66,8 +72,28 @@ class AppState: ObservableObject {
     @Published var expandedFolders: Set<UUID> = []
     @Published var scrollToRequestId: UUID? = nil
     @Published var editingEnvironment: Environment? = nil
+    @Published var showSettings: Bool = false
+    @Published var colorMode: AppColorMode = {
+        if let raw = UserDefaults.standard.string(forKey: "appColorMode"),
+           let mode = AppColorMode(rawValue: raw) {
+            return mode
+        }
+        return .system
+    }() {
+        didSet {
+            UserDefaults.standard.set(colorMode.rawValue, forKey: "appColorMode")
+        }
+    }
     private var responseCache: [UUID: Response] = [:]
     private var errorCache: [UUID: String] = [:]
+
+    var preferredScheme: ColorScheme? {
+        switch colorMode {
+        case .system: return nil
+        case .light:  return .light
+        case .dark:   return .dark
+        }
+    }
 
     // MARK: - Workspace helpers
 

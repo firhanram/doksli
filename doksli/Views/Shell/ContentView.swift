@@ -24,6 +24,10 @@ struct ContentView: View {
             EnvEditorSheet()
                 .environmentObject(appState)
         }
+        .sheet(isPresented: $appState.showSettings) {
+            SettingsView()
+                .environmentObject(appState)
+        }
         .alert("New Workspace", isPresented: $appState.showCreateWorkspace) {
             TextField("Workspace name", text: $newWorkspaceName)
             Button("Cancel", role: .cancel) {}

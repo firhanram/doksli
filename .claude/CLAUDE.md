@@ -25,7 +25,7 @@ See `docs/agent-workflow.md` for the full protocol and checklist format.
 - Bundle ID: `com.firhanram.doksli`
 - Language: Swift 5.9+
 - UI: SwiftUI, `NavigationSplitView`
-- Color mode: light only — `.preferredColorScheme(.light)` at `WindowGroup`
+- Color mode: user-selectable (system/light/dark) via Settings > Appearance
 
 ## Docs
 
@@ -56,7 +56,7 @@ See `COMMITS.md` for the full spec. Summary:
 - Never write directly to a file — atomic write (temp file + rename)
 - Never mutate a `Request` before send — `VariableResolver` returns a resolved copy
 - Never use `TabView` for request/response tabs — use custom segment control
-- Light mode only — never remove `.preferredColorScheme(.light)`
+- All colors must use `AppColors` adaptive tokens — never bypass with raw hex
 - Never put business logic in Views — belongs in Services
 
 ## Layout reference

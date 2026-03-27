@@ -15,7 +15,7 @@ Doksli/
 │   │
 │   ├── App/
 │   │   └── DoksliApp.swift             # @main, WindowGroup
-│   │                                   # .preferredColorScheme(.light) lives here
+│   │                                   # .preferredColorScheme driven by AppState.colorMode
 │   │
 │   ├── Models/
 │   │   ├── Workspace.swift             # Workspace, Collection, Item (recursive enum)
@@ -62,6 +62,10 @@ Doksli/
 │   │   │   ├── EnvEditorSheet.swift    # .sheet — KVEditor + enabled toggles + save/cancel
 │   │   │   │                           # "Import from Postman" button in footer
 │   │   │   └── EnvSelectorMenu.swift   # Toolbar Menu — lists envs + "No environment"
+│   │   │
+│   │   ├── Settings/
+│   │   │   └── SettingsView.swift      # .sheet — sidebar nav + Appearance section
+│   │   │                               # Color mode picker: Automatic / Light / Dark
 │   │   │
 │   │   └── History/
 │   │       └── HistoryView.swift       # List grouped by date, click to reload into editor

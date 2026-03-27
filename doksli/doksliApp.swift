@@ -24,7 +24,7 @@ struct doksliApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(appState)
-                .preferredColorScheme(.light)
+                .preferredColorScheme(appState.preferredScheme)
         }
         .commands {
             CommandGroup(replacing: .newItem) {
@@ -44,6 +44,11 @@ struct doksliApp: App {
                     )
                 }
                 .keyboardShortcut("b", modifiers: .command)
+            }
+
+            CommandMenu("View") {
+                Button("Settings...") { appState.showSettings = true }
+                    .keyboardShortcut(",", modifiers: .command)
             }
 
             CommandMenu("Request") {

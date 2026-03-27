@@ -5,41 +5,34 @@ import AppKit
 extension AppColors {
 
     /// NSColor equivalents of AppColors tokens for use with NSTextStorage attributes.
-    /// Hex values match design-system.md — duplicated (not converted from SwiftUI Color).
+    /// Uses dynamic provider to resolve light/dark at draw time.
     enum NS {
         // JSON syntax
-        static let jsonKey         = NSColor(hex: "#C96A2A")
-        static let jsonString      = NSColor(hex: "#2D7F4E")
-        static let jsonNumber      = NSColor(hex: "#6040A0")
-        static let jsonBoolean     = NSColor(hex: "#1E5F8F")
-        static let jsonNull        = NSColor(hex: "#8C8982")
-        static let jsonPunctuation = NSColor(hex: "#6B6760")
+        static let jsonKey         = adaptive(light: "#C96A2A", dark: "#D4916A")
+        static let jsonString      = adaptive(light: "#2D7F4E", dark: "#4CAF50")
+        static let jsonNumber      = adaptive(light: "#6040A0", dark: "#AB47BC")
+        static let jsonBoolean     = adaptive(light: "#1E5F8F", dark: "#42A5F5")
+        static let jsonNull        = adaptive(light: "#8C8982", dark: "#6A6158")
+        static let jsonPunctuation = adaptive(light: "#6B6760", dark: "#9A9389")
 
         // Text scale
-        static let textPrimary     = NSColor(hex: "#1A1916")
-        static let textFaint       = NSColor(hex: "#A09D96")
+        static let textPrimary     = adaptive(light: "#1A1916", dark: "#E8E6E3")
+        static let textFaint       = adaptive(light: "#A09D96", dark: "#5A5549")
 
         // Semantic
-        static let errorText       = NSColor(hex: "#9B2A1E")
-        static let warningText     = NSColor(hex: "#8A5A0B")
+        static let errorText       = adaptive(light: "#9B2A1E", dark: "#FF6B6B")
+        static let warningText     = adaptive(light: "#8A5A0B", dark: "#F3DF31")
 
         // Surfaces
-        static let surfacePlus     = NSColor(hex: "#F2EFE9")
-        static let canvas          = NSColor(hex: "#FDFCFA")
-        static let border          = NSColor(hex: "#DDD9D2")
-    }
-}
+        static let surfacePlus     = adaptive(light: "#F2EFE9", dark: "#2A251D")
+        static let canvas          = adaptive(light: "#FDFCFA", dark: "#1A1815")
+        static let border          = adaptive(light: "#DDD9D2", dark: "#3A352B")
 
-// MARK: - NSColor hex initializer
-
-private extension NSColor {
-    convenience init(hex: String) {
-        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
-        var int: UInt64 = 0
-        Scanner(string: hex).scanHexInt64(&int)
-        let r = CGFloat((int >> 16) & 0xFF) / 255
-        let g = CGFloat((int >> 8)  & 0xFF) / 255
-        let b = CGFloat(int         & 0xFF) / 255
-        self.init(srgbRed: r, green: g, blue: b, alpha: 1)
+        private static func adaptive(light: String, dark: String) -> NSColor {
+            NSColor(name: nil) { appearance in
+                let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+                return isDark ? NSColor(adaptiveHex: dark) : NSColor(adaptiveHex: light)
+            }
+        }
     }
 }

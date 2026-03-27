@@ -7,6 +7,17 @@ struct ToolbarView: ToolbarContent {
 
     var body: some ToolbarContent {
 
+        // MARK: Settings
+
+        ToolbarItem(placement: .primaryAction) {
+            Button {
+                appState.showSettings = true
+            } label: {
+                Image(systemName: "gear")
+                    .foregroundColor(AppColors.textTertiary)
+            }
+        }
+
         // MARK: Environment selector
 
         ToolbarItem(placement: .primaryAction) {
