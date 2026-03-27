@@ -53,6 +53,11 @@ enum AppColors {
     static let methodOptions = MethodColor(bg: Color(hex: "#E8F6F5"), text: Color(hex: "#1A5F5A"))
     static let methodHead    = MethodColor(bg: Color(hex: "#F2EFE9"), text: Color(hex: "#6B6760"))
 
+    // MARK: Search highlighting
+
+    static let searchHighlight       = Color(hex: "#FAF0EA")  // brandTint50 — passive match bg
+    static let searchHighlightActive = Color(hex: "#EECFBA")  // brandTint100 — active match bg
+
     // MARK: JSON syntax colors
 
     static let jsonKey         = Color(hex: "#C96A2A")

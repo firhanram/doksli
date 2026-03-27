@@ -2,7 +2,7 @@ import SwiftUI
 
 // MARK: - JSONRow
 
-private struct JSONRow: Identifiable {
+struct JSONRow: Identifiable {
     let id: Int
     let key: String?
     let depth: Int
@@ -19,6 +19,82 @@ private struct JSONRow: Identifiable {
         case nullValue
         case unknownValue(String)
     }
+
+    /// Text representation of the value (for search matching)
+    var valueText: String {
+        switch kind {
+        case .stringValue(let s): return s
+        case .numberValue(let n): return "\(n)"
+        case .boolValue(let b): return b ? "true" : "false"
+        case .nullValue: return "null"
+        case .unknownValue(let s): return s
+        case .objectOpen, .arrayOpen, .closingBracket: return ""
+        }
+    }
+}
+
+// MARK: - JSONSearchMatch
+
+struct JSONSearchMatch: Identifiable {
+    let id: Int
+    let rowPath: String
+    let field: MatchField
+    let range: Range<String.Index>
+
+    enum MatchField { case key, value }
+}
+
+// MARK: - computeAllRows (for search)
+
+/// Walks the entire JSON tree regardless of expansion state. Skips closing brackets.
+/// Returns rows in DFS order for position-priority search results.
+func computeAllRows(_ root: Any) -> [JSONRow] {
+    var rows: [JSONRow] = []
+    var index = 0
+
+    func walk(key: String?, value: Any, depth: Int, path: String) {
+        if let dict = value as? [String: Any] {
+            rows.append(JSONRow(id: index, key: key, depth: depth,
+                                kind: .objectOpen(count: dict.count), path: path))
+            index += 1
+            for childKey in dict.keys.sorted() {
+                let childPath = path.isEmpty ? childKey : "\(path).\(childKey)"
+                walk(key: childKey, value: dict[childKey]!, depth: depth + 1, path: childPath)
+            }
+        } else if let array = value as? [Any] {
+            rows.append(JSONRow(id: index, key: key, depth: depth,
+                                kind: .arrayOpen(count: array.count), path: path))
+            index += 1
+            for (i, element) in array.enumerated() {
+                let childPath = "\(path).\(i)"
+                walk(key: "\(i)", value: element, depth: depth + 1, path: childPath)
+            }
+        } else if let string = value as? String {
+            rows.append(JSONRow(id: index, key: key, depth: depth,
+                                kind: .stringValue(string), path: path))
+            index += 1
+        } else if let number = value as? NSNumber {
+            if CFBooleanGetTypeID() == CFGetTypeID(number) {
+                rows.append(JSONRow(id: index, key: key, depth: depth,
+                                    kind: .boolValue(number.boolValue), path: path))
+            } else {
+                rows.append(JSONRow(id: index, key: key, depth: depth,
+                                    kind: .numberValue(number), path: path))
+            }
+            index += 1
+        } else if value is NSNull {
+            rows.append(JSONRow(id: index, key: key, depth: depth,
+                                kind: .nullValue, path: path))
+            index += 1
+        } else {
+            rows.append(JSONRow(id: index, key: key, depth: depth,
+                                kind: .unknownValue(String(describing: value)), path: path))
+            index += 1
+        }
+    }
+
+    walk(key: nil, value: root, depth: 0, path: "")
+    return rows
 }
 
 // MARK: - JSONTreeView
@@ -26,21 +102,43 @@ private struct JSONRow: Identifiable {
 struct JSONTreeView: View {
     let data: Data
     @Binding var expandedPaths: Set<String>
+    var searchQuery: String = ""
+    var currentMatchPath: String? = nil
+    var scrollToPath: String? = nil
 
     var body: some View {
-        ScrollView {
-            if let parsed = parseJSON() {
-                let rows = computeVisibleRows(parsed)
-                LazyVStack(alignment: .leading, spacing: 0) {
-                    ForEach(rows) { row in
-                        rowView(row)
+        ScrollViewReader { proxy in
+            ScrollView {
+                if let parsed = parseJSON() {
+                    let rows = computeVisibleRows(parsed)
+                    LazyVStack(alignment: .leading, spacing: 0) {
+                        ForEach(rows) { row in
+                            rowView(row)
+                                .id(rowScrollID(row))
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                } else {
+                    RawBodyView(data: data)
+                }
+            }
+            .onChange(of: scrollToPath) { path in
+                if let path {
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        proxy.scrollTo(path, anchor: .center)
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            } else {
-                RawBodyView(data: data)
             }
         }
+    }
+
+    // MARK: - Scroll ID
+
+    private func rowScrollID(_ row: JSONRow) -> String {
+        if case .closingBracket = row.kind {
+            return "__close__\(row.id)"
+        }
+        return row.path
     }
 
     // MARK: - JSON parsing
@@ -115,7 +213,10 @@ struct JSONTreeView: View {
     // MARK: - Row view
 
     private func rowView(_ row: JSONRow) -> some View {
-        HStack(spacing: AppSpacing.xs) {
+        let isActiveMatch = row.path == currentMatchPath && !row.path.isEmpty
+        let isPassiveMatch = !searchQuery.isEmpty && rowContainsQuery(row)
+
+        return HStack(spacing: AppSpacing.xs) {
             // Expand toggle or spacer
             if isExpandable(row.kind) {
                 Image(systemName: expandedPaths.contains(row.path) ? "chevron.down" : "chevron.right")
@@ -130,30 +231,85 @@ struct JSONTreeView: View {
 
             // Key label
             if let key = row.key {
-                Text("\"\(key)\"")
+                highlightedText("\"\(key)\"", query: searchQuery, baseColor: AppColors.jsonKey, isActive: isActiveMatch)
                     .font(AppFonts.mono)
-                    .foregroundColor(AppColors.jsonKey)
                 Text(":")
                     .font(AppFonts.mono)
                     .foregroundColor(AppColors.jsonPunctuation)
             }
 
             // Value label
-            valueLabel(for: row)
+            valueLabel(for: row, isActive: isActiveMatch)
         }
         .padding(.leading, CGFloat(row.depth) * AppSpacing.lg)
         .padding(.vertical, AppSpacing.xs)
         .padding(.horizontal, AppSpacing.lg)
+        .background(
+            isActiveMatch ? AppColors.searchHighlightActive :
+            isPassiveMatch ? AppColors.searchHighlight :
+            Color.clear
+        )
+        .cornerRadius(AppSpacing.radiusBadge)
         .contentShape(Rectangle())
         .onTapGesture {
             handleTap(row)
         }
     }
 
+    // MARK: - Row contains query check
+
+    private func rowContainsQuery(_ row: JSONRow) -> Bool {
+        let q = searchQuery.lowercased()
+        if let key = row.key, key.lowercased().contains(q) { return true }
+        let val = row.valueText
+        if !val.isEmpty && val.lowercased().contains(q) { return true }
+        return false
+    }
+
+    // MARK: - Highlighted text
+
+    private func highlightedText(_ text: String, query: String, baseColor: Color, isActive: Bool) -> Text {
+        guard !query.isEmpty else {
+            return Text(text).foregroundColor(baseColor)
+        }
+
+        let lowerText = text.lowercased()
+        let lowerQuery = query.lowercased()
+
+        var result = Text("")
+        var searchStart = lowerText.startIndex
+
+        while searchStart < lowerText.endIndex {
+            guard let range = lowerText.range(of: lowerQuery, range: searchStart..<lowerText.endIndex) else {
+                // Append remaining text
+                let remaining = String(text[searchStart...])
+                result = result + Text(remaining).foregroundColor(baseColor)
+                break
+            }
+
+            // Append text before match
+            if range.lowerBound > searchStart {
+                let before = String(text[searchStart..<range.lowerBound])
+                result = result + Text(before).foregroundColor(baseColor)
+            }
+
+            // Append matched text with highlight
+            let matched = String(text[range])
+            result = result + Text(matched)
+                .foregroundColor(AppColors.brand)
+                .bold()
+                .underline(true, color: AppColors.brand)
+
+            searchStart = range.upperBound
+        }
+
+        return result
+    }
+
     // MARK: - Value label
 
     @ViewBuilder
-    private func valueLabel(for row: JSONRow) -> some View {
+    private func valueLabel(for row: JSONRow, isActive: Bool) -> some View {
         switch row.kind {
         case .objectOpen(let count):
             let expanded = expandedPaths.contains(row.path)
@@ -170,26 +326,21 @@ struct JSONTreeView: View {
                 .font(AppFonts.mono)
                 .foregroundColor(AppColors.jsonPunctuation)
         case .stringValue(let string):
-            Text("\"\(string)\"")
+            highlightedText("\"\(string)\"", query: searchQuery, baseColor: AppColors.jsonString, isActive: isActive)
                 .font(AppFonts.mono)
-                .foregroundColor(AppColors.jsonString)
                 .fixedSize(horizontal: false, vertical: true)
         case .numberValue(let number):
-            Text("\(number)")
+            highlightedText("\(number)", query: searchQuery, baseColor: AppColors.jsonNumber, isActive: isActive)
                 .font(AppFonts.mono)
-                .foregroundColor(AppColors.jsonNumber)
         case .boolValue(let bool):
-            Text(bool ? "true" : "false")
+            highlightedText(bool ? "true" : "false", query: searchQuery, baseColor: AppColors.jsonBoolean, isActive: isActive)
                 .font(AppFonts.mono)
-                .foregroundColor(AppColors.jsonBoolean)
         case .nullValue:
-            Text("null")
+            highlightedText("null", query: searchQuery, baseColor: AppColors.jsonNull, isActive: isActive)
                 .font(AppFonts.mono)
-                .foregroundColor(AppColors.jsonNull)
         case .unknownValue(let desc):
-            Text(desc)
+            highlightedText(desc, query: searchQuery, baseColor: AppColors.textSecondary, isActive: isActive)
                 .font(AppFonts.mono)
-                .foregroundColor(AppColors.textSecondary)
         }
     }
 
