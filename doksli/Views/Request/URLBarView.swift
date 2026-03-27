@@ -13,6 +13,9 @@ struct URLBarView: View {
     @State private var hoveredMethod: HTTPMethod? = nil
     @State private var methodKeyMonitor: Any? = nil
     @State private var methodSelectedIndex = 0
+    @State private var showCurlImport = false
+    @State private var curlInput: String = ""
+    @State private var curlError: String? = nil
     @FocusState private var isURLFieldFocused: Bool
 
     private let allMethods: [HTTPMethod] = [.GET, .POST, .PUT, .PATCH, .DELETE, .OPTIONS, .HEAD]
@@ -21,6 +24,7 @@ struct URLBarView: View {
         HStack(spacing: AppSpacing.sm) {
             methodPicker
             urlFieldWithSuggestions
+            importCurlButton
             sendButton
         }
         .padding(.horizontal, AppSpacing.lg)
@@ -381,6 +385,91 @@ struct URLBarView: View {
         if let monitor = keyMonitor {
             NSEvent.removeMonitor(monitor)
             keyMonitor = nil
+        }
+    }
+
+    // MARK: - Import cURL button
+
+    private var importCurlButton: some View {
+        Button {
+            curlError = nil
+            curlInput = ""
+            showCurlImport = true
+        } label: {
+            Image(systemName: "terminal")
+                .font(.system(size: 12))
+                .foregroundColor(AppColors.textTertiary)
+                .frame(width: 16, height: 16)
+        }
+        .buttonStyle(.plain)
+        .help("Import from cURL")
+        .popover(isPresented: $showCurlImport, arrowEdge: .bottom) {
+            curlImportPopover
+        }
+    }
+
+    private var curlImportPopover: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.md) {
+            Text("Import from cURL")
+                .font(AppFonts.title)
+                .foregroundColor(AppColors.textPrimary)
+
+            TextEditor(text: $curlInput)
+                .font(AppFonts.mono)
+                .frame(width: 360, height: 120)
+                .padding(AppSpacing.xs)
+                .background(AppColors.surfacePlus)
+                .cornerRadius(AppSpacing.radiusInput)
+                .overlay(
+                    RoundedRectangle(cornerRadius: AppSpacing.radiusInput)
+                        .stroke(AppColors.border, lineWidth: 1)
+                )
+
+            if let error = curlError {
+                Text(error)
+                    .font(AppFonts.body)
+                    .foregroundColor(AppColors.errorText)
+            }
+
+            HStack {
+                Spacer()
+                Button("Cancel") {
+                    showCurlImport = false
+                }
+                .buttonStyle(.plain)
+                .foregroundColor(AppColors.textTertiary)
+
+                Button {
+                    importCurl()
+                } label: {
+                    Text("Import")
+                        .font(AppFonts.body)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, AppSpacing.lg)
+                        .padding(.vertical, AppSpacing.sm)
+                        .background(AppColors.brand)
+                        .cornerRadius(AppSpacing.radiusBadge)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(AppSpacing.lg)
+    }
+
+    private func importCurl() {
+        let result = CurlParser.parse(curlInput)
+        switch result {
+        case .success(let parsed):
+            request.method = parsed.method
+            request.url = parsed.url
+            request.params = parsed.params
+            request.headers = parsed.headers
+            request.body = parsed.body
+            request.auth = parsed.auth
+            curlError = nil
+            showCurlImport = false
+        case .failure(let error):
+            curlError = error.localizedDescription
         }
     }
 
