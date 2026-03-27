@@ -399,7 +399,13 @@ struct URLBarView: View {
             Image(systemName: "terminal")
                 .font(.system(size: 12))
                 .foregroundColor(AppColors.textTertiary)
-                .frame(width: 16, height: 16)
+                .frame(width: 32, height: 32)
+                .background(AppColors.surfacePlus)
+                .cornerRadius(AppSpacing.radiusInput)
+                .overlay(
+                    RoundedRectangle(cornerRadius: AppSpacing.radiusInput)
+                        .stroke(AppColors.border, lineWidth: 1)
+                )
         }
         .buttonStyle(.plain)
         .help("Import from cURL")
@@ -487,10 +493,9 @@ struct URLBarView: View {
                     Image(systemName: "paperplane.fill")
                 }
             }
-            .frame(width: 16, height: 16)
+            .font(.system(size: 12))
             .foregroundColor(.white)
-            .padding(.horizontal, AppSpacing.md)
-            .padding(.vertical, AppSpacing.sm)
+            .frame(width: 32, height: 32)
             .background(canSend ? AppColors.brand : AppColors.muted)
             .cornerRadius(AppSpacing.radiusInput)
         }
