@@ -117,9 +117,9 @@ struct RequestView: View {
 
     private func syncRequestToWorkspace() {
         guard let request = appState.selectedRequest,
-              var workspace = appState.selectedWorkspace,
-              let wsIndex = appState.workspaces.firstIndex(where: { $0.id == workspace.id }) else { return }
+              let wsIndex = appState.workspaces.firstIndex(where: { $0.id == appState.selectedWorkspace?.id }) else { return }
 
+        var workspace = appState.workspaces[wsIndex]
         workspace.collections = workspace.collections.map { collection in
             var col = collection
             col.items = updateRequestInItems(requestId: request.id, request: request, in: col.items)
@@ -127,7 +127,6 @@ struct RequestView: View {
         }
 
         appState.workspaces[wsIndex] = workspace
-        appState.selectedWorkspace = workspace
         appState.saveWorkspaces()
     }
 

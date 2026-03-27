@@ -4,6 +4,11 @@ import SwiftUI
 
 struct AuthEditor: View {
     @Binding var auth: Auth
+    @State private var cachedBearer: String = ""
+    @State private var cachedBasicUser: String = ""
+    @State private var cachedBasicPass: String = ""
+    @State private var cachedApiKeyName: String = ""
+    @State private var cachedApiKeyValue: String = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -17,6 +22,14 @@ struct AuthEditor: View {
             authContent
 
             Spacer(minLength: 0)
+        }
+        .onAppear {
+            switch auth {
+            case .bearer(let t): cachedBearer = t
+            case .basic(let u, let p): cachedBasicUser = u; cachedBasicPass = p
+            case .apiKey(let n, let v): cachedApiKeyName = n; cachedApiKeyValue = v
+            case .none: break
+            }
         }
     }
 
@@ -145,11 +158,20 @@ struct AuthEditor: View {
     // MARK: - Mode switching
 
     private func switchMode(to mode: AuthMode) {
+        // Cache current values before switching
+        switch auth {
+        case .bearer(let t): cachedBearer = t
+        case .basic(let u, let p): cachedBasicUser = u; cachedBasicPass = p
+        case .apiKey(let n, let v): cachedApiKeyName = n; cachedApiKeyValue = v
+        case .none: break
+        }
+
+        // Restore cached values for the target mode
         switch mode {
         case .none: auth = .none
-        case .bearer: auth = .bearer("")
-        case .basic: auth = .basic("", "")
-        case .apiKey: auth = .apiKey("", "")
+        case .bearer: auth = .bearer(cachedBearer)
+        case .basic: auth = .basic(cachedBasicUser, cachedBasicPass)
+        case .apiKey: auth = .apiKey(cachedApiKeyName, cachedApiKeyValue)
         }
     }
 
