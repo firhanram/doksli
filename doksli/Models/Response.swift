@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - Response
 
-struct Response: Codable {
+struct Response: Codable, Equatable {
     var statusCode: Int
     var headers: [KVPair]
     var body: Data

@@ -21,6 +21,7 @@ enum ResponseTab: Hashable {
 struct ResponseView: View {
     @EnvironmentObject var appState: AppState
     @State private var activeTab: ResponseTab = .body
+    @State private var jsonExpandedPaths: Set<String> = [""]
 
     var body: some View {
         Group {
@@ -36,6 +37,9 @@ struct ResponseView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(AppColors.canvas)
+        .onChange(of: appState.pendingResponse) { _ in
+            jsonExpandedPaths = [""]
+        }
     }
 
     // MARK: - Response content
@@ -61,7 +65,7 @@ struct ResponseView: View {
         switch activeTab {
         case .body:
             if isJSONResponse(response) {
-                JSONTreeView(data: response.body)
+                JSONTreeView(data: response.body, expandedPaths: $jsonExpandedPaths)
             } else {
                 RawBodyView(data: response.body)
             }

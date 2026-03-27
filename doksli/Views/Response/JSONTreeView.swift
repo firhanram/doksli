@@ -25,7 +25,7 @@ private struct JSONRow: Identifiable {
 
 struct JSONTreeView: View {
     let data: Data
-    @State private var expandedPaths: Set<String> = [""]
+    @Binding var expandedPaths: Set<String>
 
     var body: some View {
         ScrollView {
