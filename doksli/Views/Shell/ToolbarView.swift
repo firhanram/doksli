@@ -7,13 +7,17 @@ struct ToolbarView: ToolbarContent {
 
     var body: some ToolbarContent {
 
-        // MARK: Environment selector
+        // MARK: Title + Environment selector
 
-        ToolbarItem(placement: .primaryAction) {
-            EnvSelectorMenu(appState: appState)
+        ToolbarItem(placement: .navigation) {
+            HStack(spacing: AppSpacing.md) {
+                Text("Doksli")
+                    .font(.headline)
+                EnvSelectorMenu(appState: appState)
+            }
         }
 
-        // MARK: Settings
+        // MARK: Settings (far right)
 
         ToolbarItem(placement: .primaryAction) {
             Button {

@@ -18,7 +18,7 @@ struct ContentView: View {
             ResponseView()
         }
         .frame(minWidth: 1000, minHeight: 600)
-        .navigationTitle("Doksli")
+        .navigationTitle("")
         .toolbar { ToolbarView(appState: appState) }
         .sheet(isPresented: $appState.showEnvEditor) {
             EnvEditorSheet()
