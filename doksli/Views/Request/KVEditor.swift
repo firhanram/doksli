@@ -12,7 +12,7 @@ struct KVEditor: View {
     var parentValueType: KVPair.ValueType? = nil
 
     var body: some View {
-        LazyVStack(spacing: 0) {
+        VStack(spacing: 0) {
             if depth == 0 && !pairs.isEmpty {
                 toggleAllRow
                 Divider().foregroundColor(AppColors.subtle)

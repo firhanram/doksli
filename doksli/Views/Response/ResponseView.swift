@@ -51,7 +51,6 @@ struct ResponseView: View {
         .onChange(of: appState.pendingResponse) { _ in
             jsonExpandedPaths = [""]
             closeSearch()
-            cacheAllRows()
         }
         .onChange(of: searchQuery) { newQuery in
             performSearch(query: newQuery)
@@ -260,6 +259,7 @@ struct ResponseView: View {
         currentMatchIndex = 0
         scrollToPath = nil
         savedExpandedPaths = nil
+        cachedAllRows = []
     }
 
     // MARK: - Cmd+F monitor

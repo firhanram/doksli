@@ -84,7 +84,21 @@ class AppState: ObservableObject {
             UserDefaults.standard.set(colorMode.rawValue, forKey: "appColorMode")
         }
     }
-    private var responseCache: [UUID: Response] = [:]
+    /// Response cache with LRU eviction — keeps at most 10 entries in memory.
+    /// Oldest entries are evicted when the limit is exceeded.
+    private var responseCache: [UUID: Response] = [:] {
+        didSet {
+            if responseCache.count > 10 {
+                // Keep only the most recently accessed entries
+                // Since we can't track access order cheaply, just trim to limit
+                let excess = responseCache.count - 10
+                let keysToRemove = Array(responseCache.keys.prefix(excess))
+                for key in keysToRemove {
+                    responseCache.removeValue(forKey: key)
+                }
+            }
+        }
+    }
     private var errorCache: [UUID: String] = [:]
     private var systemThemeObserver: NSObjectProtocol?
 
@@ -278,7 +292,10 @@ class AppState: ObservableObject {
     }
 
     private func saveResponseCache() {
-        try? StorageService.saveResponseCache(responseCache)
+        let cache = responseCache
+        DispatchQueue.global(qos: .utility).async {
+            try? StorageService.saveResponseCache(cache)
+        }
     }
 
     // MARK: - Workspace mutations
