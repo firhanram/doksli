@@ -84,17 +84,17 @@ class AppState: ObservableObject {
             UserDefaults.standard.set(colorMode.rawValue, forKey: "appColorMode")
         }
     }
-    /// Response cache with LRU eviction — keeps at most 10 entries in memory.
-    /// Oldest entries are evicted when the limit is exceeded.
+    /// Response cache — keeps at most 5 entries in memory.
+    /// Evicts largest entries first when the limit is exceeded.
+    private static let responseCacheLimit = 5
     private var responseCache: [UUID: Response] = [:] {
         didSet {
-            if responseCache.count > 10 {
-                // Keep only the most recently accessed entries
-                // Since we can't track access order cheaply, just trim to limit
-                let excess = responseCache.count - 10
-                let keysToRemove = Array(responseCache.keys.prefix(excess))
-                for key in keysToRemove {
-                    responseCache.removeValue(forKey: key)
+            if responseCache.count > Self.responseCacheLimit {
+                let excess = responseCache.count - Self.responseCacheLimit
+                // Evict largest responses first to free the most memory
+                let sorted = responseCache.sorted { $0.value.sizeBytes > $1.value.sizeBytes }
+                for entry in sorted.prefix(excess) {
+                    responseCache.removeValue(forKey: entry.key)
                 }
             }
         }
