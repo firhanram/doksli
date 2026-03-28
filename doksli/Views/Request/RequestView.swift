@@ -16,6 +16,7 @@ enum RequestTab: String, CaseIterable {
 /// TextField being edited updates (via its own internal state).
 private class EditBuffer {
     var request: Request?
+    var isDirty = false
 }
 
 // MARK: - RequestView
@@ -41,25 +42,29 @@ struct RequestView: View {
             // Request switched — flush pending edits, load new request into buffer
             flushSync()
             editBuffer.request = appState.selectedRequest
+            editBuffer.isDirty = false
             displayedRequestId = newId
         }
         .onChange(of: appState.selectedRequest) { newRequest in
             // External update (e.g. rename from sidebar)
             guard let newRequest = newRequest else {
                 editBuffer.request = nil
+                editBuffer.isDirty = false
                 displayedRequestId = nil
                 return
             }
             if editBuffer.request?.id != newRequest.id {
                 editBuffer.request = newRequest
+                editBuffer.isDirty = false
                 displayedRequestId = newRequest.id
-            } else if syncWorkItem == nil {
+            } else if syncWorkItem == nil && !editBuffer.isDirty {
                 // No pending local edits — accept external update
                 editBuffer.request = newRequest
             }
         }
         .onAppear {
             editBuffer.request = appState.selectedRequest
+            editBuffer.isDirty = false
             displayedRequestId = appState.selectedRequest?.id
         }
         .onDisappear {
@@ -81,16 +86,15 @@ struct RequestView: View {
     private func flushSync() {
         syncWorkItem?.cancel()
         syncWorkItem = nil
-        // Save pending edits to workspace without touching appState.selectedRequest
-        // (the user may have already switched to a different request)
-        if let request = editBuffer.request {
-            syncRequestToWorkspace(request)
-        }
+        guard editBuffer.isDirty, let request = editBuffer.request else { return }
+        editBuffer.isDirty = false
+        syncRequestToWorkspace(request)
     }
 
     private func commitEdits() {
         syncWorkItem = nil
-        guard let request = editBuffer.request else { return }
+        guard editBuffer.isDirty, let request = editBuffer.request else { return }
+        editBuffer.isDirty = false
         // Only update appState.selectedRequest if still editing the same request
         if appState.selectedRequest?.id == request.id, appState.selectedRequest != request {
             appState.selectedRequest = request
@@ -112,6 +116,7 @@ struct RequestView: View {
             ) },
             set: { newValue in
                 editBuffer.request = newValue
+                editBuffer.isDirty = true
                 debouncedSync()
             }
         )
@@ -184,15 +189,20 @@ struct RequestView: View {
     private func syncRequestToWorkspace(_ request: Request) {
         guard let wsIndex = appState.workspaces.firstIndex(where: { $0.id == appState.selectedWorkspace?.id }) else { return }
 
+        // Update in-memory workspace (fast)
         var workspace = appState.workspaces[wsIndex]
         workspace.collections = workspace.collections.map { collection in
             var col = collection
             col.items = updateRequestInItems(requestId: request.id, request: request, in: col.items)
             return col
         }
-
         appState.workspaces[wsIndex] = workspace
-        appState.saveWorkspaces()
+
+        // Save to disk asynchronously — don't block the main thread
+        let workspaces = appState.workspaces
+        DispatchQueue.global(qos: .utility).async {
+            try? StorageService.saveWorkspaces(workspaces)
+        }
     }
 
     private func updateRequestInItems(requestId: UUID, request: Request, in items: [Item]) -> [Item] {
