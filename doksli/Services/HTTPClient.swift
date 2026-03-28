@@ -7,6 +7,13 @@ enum HTTPClientError: Error {
     case notHTTPResponse
 }
 
+// MARK: - FlattenStyle
+
+enum FlattenStyle {
+    case bracket     // field[key], field[0] — for query params and URL encoded
+    case dotRepeat   // field.key, field (repeated) — for form data bodies
+}
+
 // MARK: - HTTPClient
 
 struct HTTPClient {
@@ -80,12 +87,13 @@ struct HTTPClient {
                 }
             }
         case .formData(let pairs):
+            let resolvedPairs = Self.resolvePairs(pairs, environment: environment)
             let boundary = UUID().uuidString
             urlRequest.setValue(
                 "multipart/form-data; boundary=\(boundary)",
                 forHTTPHeaderField: "Content-Type"
             )
-            urlRequest.httpBody = buildMultipartBody(pairs: pairs, boundary: boundary)
+            urlRequest.httpBody = buildMultipartBody(pairs: resolvedPairs, boundary: boundary)
         case .urlEncoded(let pairs):
             urlRequest.setValue(
                 "application/x-www-form-urlencoded",
@@ -143,11 +151,14 @@ struct HTTPClient {
 
     // MARK: Body encoding helpers
 
-    /// Recursively flattens nested KVPairs into `(bracketNotatedName, leafPair)` tuples.
+    /// Recursively flattens nested KVPairs into `(name, leafPair)` tuples.
+    /// `.bracket` style uses `field[key]` / `field[0]` — for query params and URL encoded.
+    /// `.dotRepeat` style uses `field.key` for objects and repeats the same key for arrays — for form data.
     /// Skips disabled pairs at any level.
     static func flattenPairs(
         _ pairs: [KVPair],
-        prefix: String = ""
+        prefix: String = "",
+        style: FlattenStyle = .bracket
     ) -> [(name: String, pair: KVPair)] {
         var result: [(name: String, pair: KVPair)] = []
         for (index, pair) in pairs.enumerated() {
@@ -156,30 +167,54 @@ struct HTTPClient {
             let name: String
             if prefix.isEmpty {
                 name = pair.key
+            } else if style == .dotRepeat {
+                name = pair.key.isEmpty ? prefix : "\(prefix).\(pair.key)"
             } else {
-                // For array children, use index as key
                 let segment = pair.key.isEmpty ? "\(index)" : pair.key
                 name = "\(prefix)[\(segment)]"
             }
 
             if pair.isContainer, let children = pair.children {
-                let childPairs: [KVPair]
-                if pair.valueType == .array {
-                    // For arrays, force index-based keys
-                    childPairs = children.enumerated().map { idx, child in
-                        var c = child
-                        c.key = "\(idx)"
-                        return c
+                if pair.valueType == .array && style == .dotRepeat {
+                    // Array with dotRepeat: flatten each child using the SAME name (repeated key)
+                    for child in children where child.enabled {
+                        if child.isContainer, let grandchildren = child.children {
+                            result += flattenPairs(grandchildren, prefix: name, style: style)
+                        } else {
+                            result.append((name: name, pair: child))
+                        }
                     }
                 } else {
-                    childPairs = children
+                    let childPairs: [KVPair]
+                    if pair.valueType == .array {
+                        childPairs = children.enumerated().map { idx, child in
+                            var c = child
+                            c.key = "\(idx)"
+                            return c
+                        }
+                    } else {
+                        childPairs = children
+                    }
+                    result += flattenPairs(childPairs, prefix: name, style: style)
                 }
-                result += flattenPairs(childPairs, prefix: name)
             } else {
                 result.append((name: name, pair: pair))
             }
         }
         return result
+    }
+
+    /// Recursively resolves `{{var}}` tokens in KVPair keys and values.
+    private static func resolvePairs(_ pairs: [KVPair], environment: Environment?) -> [KVPair] {
+        pairs.map { pair in
+            var resolved = pair
+            resolved.key = VariableResolver.resolve(pair.key, environment: environment)
+            resolved.value = VariableResolver.resolve(pair.value, environment: environment)
+            if let children = pair.children {
+                resolved.children = resolvePairs(children, environment: environment)
+            }
+            return resolved
+        }
     }
 
     private static func buildURLEncodedBody(pairs: [KVPair]) -> Data {
@@ -195,20 +230,19 @@ struct HTTPClient {
     private static func buildMultipartBody(pairs: [KVPair], boundary: String) -> Data {
         var body = Data()
         let crlf = "\r\n"
-        let flattened = flattenPairs(pairs)
+        let flattened = flattenPairs(pairs, style: .dotRepeat)
         for item in flattened {
-            body += Data("--\(boundary)\(crlf)".utf8)
-
             if item.pair.valueType == .file {
                 let fileURL = URL(fileURLWithPath: item.pair.value)
+                guard let fileData = try? Data(contentsOf: fileURL) else { continue }
                 let filename = fileURL.lastPathComponent
                 let mimeType = mimeTypeForPath(item.pair.value)
+                body += Data("--\(boundary)\(crlf)".utf8)
                 body += Data("Content-Disposition: form-data; name=\"\(item.name)\"; filename=\"\(filename)\"\(crlf)".utf8)
                 body += Data("Content-Type: \(mimeType)\(crlf)\(crlf)".utf8)
-                if let fileData = try? Data(contentsOf: fileURL) {
-                    body += fileData
-                }
+                body += fileData
             } else {
+                body += Data("--\(boundary)\(crlf)".utf8)
                 body += Data("Content-Disposition: form-data; name=\"\(item.name)\"\(crlf)\(crlf)".utf8)
                 body += Data("\(item.pair.value)".utf8)
             }

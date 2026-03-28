@@ -192,6 +192,166 @@ private func makeEnv(_ vars: [(key: String, value: String, enabled: Bool)]) -> E
     #expect(!url.contains("status"))
 }
 
+// MARK: - Form data dot/repeat notation tests
+
+@Test func flattenFormDataNestedObject() {
+    let pairs = [
+        KVPair(key: "personalInformation", valueType: .object, children: [
+            KVPair(key: "gender", value: "male", enabled: true),
+            KVPair(key: "email", value: "a@b.com", enabled: true)
+        ])
+    ]
+    let flattened = HTTPClient.flattenPairs(pairs, style: .dotRepeat)
+    #expect(flattened.count == 2)
+    #expect(flattened[0].name == "personalInformation.gender")
+    #expect(flattened[0].pair.value == "male")
+    #expect(flattened[1].name == "personalInformation.email")
+    #expect(flattened[1].pair.value == "a@b.com")
+}
+
+@Test func flattenFormDataDeepNestedObject() {
+    let pairs = [
+        KVPair(key: "user", valueType: .object, children: [
+            KVPair(key: "address", valueType: .object, children: [
+                KVPair(key: "city", value: "Jakarta", enabled: true)
+            ])
+        ])
+    ]
+    let flattened = HTTPClient.flattenPairs(pairs, style: .dotRepeat)
+    #expect(flattened.count == 1)
+    #expect(flattened[0].name == "user.address.city")
+    #expect(flattened[0].pair.value == "Jakarta")
+}
+
+@Test func flattenFormDataArrayRepeatsKey() {
+    let pairs = [
+        KVPair(key: "tags", valueType: .array, children: [
+            KVPair(value: "swift", enabled: true),
+            KVPair(value: "macos", enabled: true),
+            KVPair(value: "native", enabled: true)
+        ])
+    ]
+    let flattened = HTTPClient.flattenPairs(pairs, style: .dotRepeat)
+    #expect(flattened.count == 3)
+    // All items should have the same key name (repeated)
+    #expect(flattened[0].name == "tags")
+    #expect(flattened[1].name == "tags")
+    #expect(flattened[2].name == "tags")
+    #expect(flattened[0].pair.value == "swift")
+    #expect(flattened[1].pair.value == "macos")
+    #expect(flattened[2].pair.value == "native")
+}
+
+@Test func flattenFormDataArrayDisabledChildSkipped() {
+    let pairs = [
+        KVPair(key: "files", valueType: .array, children: [
+            KVPair(value: "a.png", enabled: true),
+            KVPair(value: "b.png", enabled: false),
+            KVPair(value: "c.png", enabled: true)
+        ])
+    ]
+    let flattened = HTTPClient.flattenPairs(pairs, style: .dotRepeat)
+    #expect(flattened.count == 2)
+    #expect(flattened[0].pair.value == "a.png")
+    #expect(flattened[1].pair.value == "c.png")
+}
+
+@Test func flattenFormDataMixedObjectAndArray() {
+    let pairs = [
+        KVPair(key: "personalInformation", valueType: .object, children: [
+            KVPair(key: "gender", value: "male", enabled: true),
+            KVPair(key: "email", value: "a@b.com", enabled: true)
+        ]),
+        KVPair(key: "guardianInformation", valueType: .object, children: [
+            KVPair(key: "name", value: "John", enabled: true)
+        ]),
+        KVPair(key: "files", valueType: .array, children: [
+            KVPair(value: "image1.png", enabled: true),
+            KVPair(value: "image2.png", enabled: true)
+        ])
+    ]
+    let flattened = HTTPClient.flattenPairs(pairs, style: .dotRepeat)
+    #expect(flattened.count == 5)
+    #expect(flattened[0].name == "personalInformation.gender")
+    #expect(flattened[1].name == "personalInformation.email")
+    #expect(flattened[2].name == "guardianInformation.name")
+    #expect(flattened[3].name == "files")
+    #expect(flattened[4].name == "files")
+    #expect(flattened[3].pair.value == "image1.png")
+    #expect(flattened[4].pair.value == "image2.png")
+}
+
+@Test func flattenBracketStyleUnchanged() {
+    // Verify that bracket style (query params/URL encoded) is not affected
+    let pairs = [
+        KVPair(key: "filter", valueType: .object, children: [
+            KVPair(key: "status", value: "active", enabled: true)
+        ]),
+        KVPair(key: "ids", valueType: .array, children: [
+            KVPair(value: "1", enabled: true),
+            KVPair(value: "2", enabled: true)
+        ])
+    ]
+    let flattened = HTTPClient.flattenPairs(pairs, style: .bracket)
+    #expect(flattened.count == 3)
+    #expect(flattened[0].name == "filter[status]")
+    #expect(flattened[1].name == "ids[0]")
+    #expect(flattened[2].name == "ids[1]")
+}
+
+@Test func buildFormDataBodyUsesDotNotation() throws {
+    let pairs = [
+        KVPair(key: "info", valueType: .object, children: [
+            KVPair(key: "name", value: "Alice", enabled: true)
+        ]),
+        KVPair(key: "username", value: "alice123", enabled: true)
+    ]
+    let request = makeRequest(method: .POST, url: "https://httpbin.org/post", body: .formData(pairs))
+    let urlRequest = try HTTPClient.buildRequest(from: request, environment: nil)
+    let bodyString = String(data: urlRequest.httpBody ?? Data(), encoding: .utf8) ?? ""
+    #expect(bodyString.contains("name=\"info.name\""))
+    #expect(bodyString.contains("Alice"))
+    #expect(bodyString.contains("name=\"username\""))
+    #expect(bodyString.contains("alice123"))
+    // Must NOT contain bracket notation
+    #expect(!bodyString.contains("info[name]"))
+}
+
+@Test func buildFormDataBodyRepeatsArrayKey() throws {
+    let pairs = [
+        KVPair(key: "tags", valueType: .array, children: [
+            KVPair(value: "swift", enabled: true),
+            KVPair(value: "macos", enabled: true)
+        ])
+    ]
+    let request = makeRequest(method: .POST, url: "https://httpbin.org/post", body: .formData(pairs))
+    let urlRequest = try HTTPClient.buildRequest(from: request, environment: nil)
+    let bodyString = String(data: urlRequest.httpBody ?? Data(), encoding: .utf8) ?? ""
+    // Both array items should use the same key "tags" (repeated)
+    let tagCount = bodyString.components(separatedBy: "name=\"tags\"").count - 1
+    #expect(tagCount == 2)
+    #expect(bodyString.contains("swift"))
+    #expect(bodyString.contains("macos"))
+    // Must NOT contain bracket notation
+    #expect(!bodyString.contains("tags[0]"))
+    #expect(!bodyString.contains("tags[1]"))
+}
+
+@Test func buildFormDataResolvesVariables() throws {
+    let env = makeEnv([("gender_val", "male", true), ("email_val", "a@b.com", true)])
+    let pairs = [
+        KVPair(key: "gender", value: "{{gender_val}}", enabled: true),
+        KVPair(key: "email", value: "{{email_val}}", enabled: true)
+    ]
+    let request = makeRequest(method: .POST, url: "https://httpbin.org/post", body: .formData(pairs))
+    let urlRequest = try HTTPClient.buildRequest(from: request, environment: env)
+    let bodyString = String(data: urlRequest.httpBody ?? Data(), encoding: .utf8) ?? ""
+    #expect(bodyString.contains("male"))
+    #expect(bodyString.contains("a@b.com"))
+    #expect(!bodyString.contains("{{gender_val}}"))
+    #expect(!bodyString.contains("{{email_val}}"))
+}
+
 // MARK: - Integration tests (require network)
 
 @Test(.timeLimit(.minutes(1)))
