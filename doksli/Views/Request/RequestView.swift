@@ -115,9 +115,24 @@ struct RequestView: View {
                 params: [], headers: [], body: .none, auth: .none
             ) },
             set: { newValue in
+                let oldValue = editBuffer.request
                 editBuffer.request = newValue
                 editBuffer.isDirty = true
-                debouncedSync()
+
+                // Structural changes (mode switches, method changes) need immediate
+                // commit so SwiftUI re-renders the correct sub-view right away.
+                // Text-only edits keep the debounce to avoid blocking input.
+                let isStructural = oldValue?.body.mode != newValue.body.mode
+                    || oldValue?.auth != newValue.auth
+                    || oldValue?.method != newValue.method
+
+                if isStructural {
+                    syncWorkItem?.cancel()
+                    syncWorkItem = nil
+                    commitEdits()
+                } else {
+                    debouncedSync()
+                }
             }
         )
     }
