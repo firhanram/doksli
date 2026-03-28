@@ -33,7 +33,8 @@ import Foundation
         body: .none,
         auth: .none
     )
-    let innerFolder = Folder(id: UUID(), name: "Folder B", items: [.request(request)])
+    let stub = RequestStub(from: request)
+    let innerFolder = Folder(id: UUID(), name: "Folder B", items: [.request(stub)])
     let outerFolder = Folder(id: UUID(), name: "Folder A", items: [.folder(innerFolder)])
     let collection = Collection(id: UUID(), name: "Nested", items: [.folder(outerFolder)])
     let workspace = Workspace(id: UUID(), name: "Deep", collections: [collection])
@@ -53,12 +54,12 @@ import Foundation
     }
     #expect(decodedInner.name == "Folder B")
 
-    guard case .request(let decodedRequest) = decodedInner.items[0] else {
+    guard case .request(let decodedStub) = decodedInner.items[0] else {
         Issue.record("Expected .request at depth 3")
         return
     }
-    #expect(decodedRequest.name == "Get User")
-    #expect(decodedRequest.method == .GET)
+    #expect(decodedStub.name == "Get User")
+    #expect(decodedStub.method == .GET)
 }
 
 // MARK: - Request + KVPair round-trip

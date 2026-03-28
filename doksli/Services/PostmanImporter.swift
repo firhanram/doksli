@@ -179,9 +179,16 @@ enum PostmanImporter {
         return Environment(id: UUID(), name: postman.name, variables: variables)
     }
 
+    // MARK: - Import result
+
+    struct CollectionImportResult {
+        let folder: Folder          // tree with RequestStubs
+        let requests: [Request]     // full requests to persist
+    }
+
     // MARK: - Import collection
 
-    static func importCollection(from url: URL) throws -> Folder {
+    static func importCollection(from url: URL) throws -> CollectionImportResult {
         let data: Data
         do {
             data = try Data(contentsOf: url)
@@ -196,32 +203,37 @@ enum PostmanImporter {
             throw ImportError.invalidCollection
         }
 
-        let items = postman.item.map { convertItem($0) }
-        return Folder(id: UUID(), name: postman.info.name, items: items)
+        var requests: [Request] = []
+        let items = postman.item.map { convertItem($0, collecting: &requests) }
+        let folder = Folder(id: UUID(), name: postman.info.name, items: items)
+        return CollectionImportResult(folder: folder, requests: requests)
     }
 
     // MARK: - Conversion helpers
 
-    private static func convertItem(_ item: PostmanItem) -> Item {
+    private static func convertItem(_ item: PostmanItem, collecting requests: inout [Request]) -> Item {
         let name = item.name ?? "Untitled"
 
         if let children = item.item {
             let folder = Folder(
                 id: UUID(),
                 name: name,
-                items: children.map { convertItem($0) }
+                items: children.map { convertItem($0, collecting: &requests) }
             )
             return .folder(folder)
         } else if let reqWrapper = item.request {
+            let request: Request
             switch reqWrapper {
             case .string(let urlString):
-                return .request(Request(
+                request = Request(
                     id: UUID(), name: name, method: .GET, url: urlString,
                     params: [], headers: [], body: .none, auth: .none
-                ))
+                )
             case .object(let req):
-                return .request(convertRequest(name: name, from: req))
+                request = convertRequest(name: name, from: req)
             }
+            requests.append(request)
+            return .request(RequestStub(from: request))
         } else {
             return .folder(Folder(id: UUID(), name: name, items: []))
         }

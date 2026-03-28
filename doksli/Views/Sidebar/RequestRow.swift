@@ -3,13 +3,13 @@ import SwiftUI
 // MARK: - RequestRow
 
 struct RequestRow: View {
-    let request: Request
+    let stub: RequestStub
     let isActive: Bool
 
     var body: some View {
         HStack(spacing: AppSpacing.sm) {
-            MethodBadge(method: request.method)
-            Text(request.name)
+            MethodBadge(method: stub.method)
+            Text(stub.name)
                 .font(AppFonts.body)
                 .foregroundColor(AppColors.textPrimary)
                 .lineLimit(1)

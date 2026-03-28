@@ -323,15 +323,13 @@ struct QuickSearchView: View {
     }
 
     private func navigateToItem(id: UUID, isRequest: Bool) {
-        guard let workspace = appState.selectedWorkspace else { return }
-
         // Expand parent folders
         appState.revealItem(id: id)
 
         if isRequest {
-            if let request = findRequest(id: id, in: workspace) {
-                appState.selectedRequest = request
-            }
+            // Load full request from disk
+            let stub = RequestStub(id: id, name: "", method: .GET, url: "")
+            appState.selectRequest(stub: stub)
             // Trigger scroll in sidebar
             appState.scrollToRequestId = id
         } else {
@@ -388,28 +386,4 @@ struct QuickSearchView: View {
         appState.showQuickSearch = false
     }
 
-    // MARK: - Find request
-
-    private func findRequest(id: UUID, in workspace: Workspace) -> Request? {
-        for collection in workspace.collections {
-            if let found = findRequestInItems(id: id, items: collection.items) {
-                return found
-            }
-        }
-        return nil
-    }
-
-    private func findRequestInItems(id: UUID, items: [Item]) -> Request? {
-        for item in items {
-            switch item {
-            case .request(let r):
-                if r.id == id { return r }
-            case .folder(let f):
-                if let found = findRequestInItems(id: id, items: f.items) {
-                    return found
-                }
-            }
-        }
-        return nil
-    }
 }

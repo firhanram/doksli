@@ -150,12 +150,12 @@ final class SidebarSearchService {
                 let childBreadcrumb = breadcrumb.isEmpty ? folder.name : "\(breadcrumb) > \(folder.name)"
                 collectRecursive(items: folder.items, breadcrumb: childBreadcrumb, into: &result)
 
-            case .request(let request):
+            case .request(let stub):
                 result.append(SearchableItem(
-                    id: request.id,
-                    name: request.name,
-                    url: request.url.isEmpty ? nil : request.url,
-                    method: request.method,
+                    id: stub.id,
+                    name: stub.name,
+                    url: stub.url.isEmpty ? nil : stub.url,
+                    method: stub.method,
                     breadcrumb: breadcrumb
                 ))
             }

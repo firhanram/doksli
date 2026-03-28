@@ -62,7 +62,7 @@ private func makeResponse(body: Data = Data("{\"ok\":true}".utf8)) -> Response {
                     .folder(Folder(
                         id: UUID(uuidString: "33333333-3333-3333-3333-333333333333")!,
                         name: "Login",
-                        items: [.request(makeRequest())]
+                        items: [.request(RequestStub(from: makeRequest()))]
                     ))
                 ]
             )
@@ -229,13 +229,9 @@ private func makeResponse(body: Data = Data("{\"ok\":true}".utf8)) -> Response {
     defer { try? FileManager.default.removeItem(at: dir) }
 
     let req = makeRequest(body: .json("{\"name\":\"Alice\"}"))
-    let ws = Workspace(id: UUID(), name: "W", collections: [
-        Collection(id: UUID(), name: "C", items: [.request(req)])
-    ])
-    try StorageService.saveWorkspaces([ws], to: dir)
-    let loaded = StorageService.loadWorkspaces(from: dir)
-    guard case .request(let r) = loaded[0].collections[0].items[0] else {
-        Issue.record("Expected .request"); return
+    try StorageService.saveRequest(req, to: dir)
+    guard let r = StorageService.loadRequest(id: req.id, from: dir) else {
+        Issue.record("Expected to load request"); return
     }
     #expect(r.body.mode == .json)
     #expect(r.body.jsonBody == "{\"name\":\"Alice\"}")
@@ -247,13 +243,9 @@ private func makeResponse(body: Data = Data("{\"ok\":true}".utf8)) -> Response {
 
     let pairs = [KVPair(id: UUID(uuidString: "CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC")!, key: "field", value: "val", enabled: true)]
     let req = makeRequest(body: .formData(pairs))
-    let ws = Workspace(id: UUID(), name: "W", collections: [
-        Collection(id: UUID(), name: "C", items: [.request(req)])
-    ])
-    try StorageService.saveWorkspaces([ws], to: dir)
-    let loaded = StorageService.loadWorkspaces(from: dir)
-    guard case .request(let r) = loaded[0].collections[0].items[0] else {
-        Issue.record("Expected .request"); return
+    try StorageService.saveRequest(req, to: dir)
+    guard let r = StorageService.loadRequest(id: req.id, from: dir) else {
+        Issue.record("Expected to load request"); return
     }
     #expect(r.body.mode == .formData)
     #expect(r.body.formDataPairs.count == 1)
@@ -267,13 +259,9 @@ private func makeResponse(body: Data = Data("{\"ok\":true}".utf8)) -> Response {
 
     let pairs = [KVPair(id: UUID(uuidString: "DDDDDDDD-DDDD-DDDD-DDDD-DDDDDDDDDDDD")!, key: "q", value: "hello", enabled: true)]
     let req = makeRequest(body: .urlEncoded(pairs))
-    let ws = Workspace(id: UUID(), name: "W", collections: [
-        Collection(id: UUID(), name: "C", items: [.request(req)])
-    ])
-    try StorageService.saveWorkspaces([ws], to: dir)
-    let loaded = StorageService.loadWorkspaces(from: dir)
-    guard case .request(let r) = loaded[0].collections[0].items[0] else {
-        Issue.record("Expected .request"); return
+    try StorageService.saveRequest(req, to: dir)
+    guard let r = StorageService.loadRequest(id: req.id, from: dir) else {
+        Issue.record("Expected to load request"); return
     }
     #expect(r.body.mode == .urlEncoded)
     #expect(r.body.urlEncodedPairs.count == 1)
@@ -286,13 +274,9 @@ private func makeResponse(body: Data = Data("{\"ok\":true}".utf8)) -> Response {
     defer { try? FileManager.default.removeItem(at: dir) }
 
     let req = makeRequest(body: .none)
-    let ws = Workspace(id: UUID(), name: "W", collections: [
-        Collection(id: UUID(), name: "C", items: [.request(req)])
-    ])
-    try StorageService.saveWorkspaces([ws], to: dir)
-    let loaded = StorageService.loadWorkspaces(from: dir)
-    guard case .request(let r) = loaded[0].collections[0].items[0] else {
-        Issue.record("Expected .request"); return
+    try StorageService.saveRequest(req, to: dir)
+    guard let r = StorageService.loadRequest(id: req.id, from: dir) else {
+        Issue.record("Expected to load request"); return
     }
     #expect(r.body.mode == .none)
 }

@@ -4,7 +4,7 @@ import Foundation
 
 indirect enum Item: Codable {
     case folder(Folder)
-    case request(Request)
+    case request(RequestStub)
 
     private enum CodingKeys: String, CodingKey {
         case type, folder, request
@@ -22,8 +22,8 @@ indirect enum Item: Codable {
             let folder = try container.decode(Folder.self, forKey: .folder)
             self = .folder(folder)
         case .request:
-            let request = try container.decode(Request.self, forKey: .request)
-            self = .request(request)
+            let stub = try container.decode(RequestStub.self, forKey: .request)
+            self = .request(stub)
         }
     }
 
@@ -33,9 +33,9 @@ indirect enum Item: Codable {
         case .folder(let folder):
             try container.encode(ItemType.folder, forKey: .type)
             try container.encode(folder, forKey: .folder)
-        case .request(let request):
+        case .request(let stub):
             try container.encode(ItemType.request, forKey: .type)
-            try container.encode(request, forKey: .request)
+            try container.encode(stub, forKey: .request)
         }
     }
 }

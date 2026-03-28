@@ -312,9 +312,54 @@ class AppState: ObservableObject {
         saveWorkspaces()
     }
 
-    func importPostmanFolder(_ folder: Folder) {
+    /// Loads a full request from disk and sets it as the selected request.
+    func selectRequest(stub: RequestStub) {
+        if let full = StorageService.loadRequest(id: stub.id) {
+            selectedRequest = full
+        } else {
+            // Fallback: create minimal request from stub fields
+            let fallback = Request(
+                id: stub.id, name: stub.name, method: stub.method, url: stub.url,
+                params: [], headers: [], body: .none, auth: .none
+            )
+            selectedRequest = fallback
+            try? StorageService.saveRequest(fallback)
+        }
+    }
+
+    /// Updates the stub metadata in the workspace tree when a request's name/method/url changes.
+    func updateStubInTree(for request: Request) {
+        guard let wsIndex = workspaces.firstIndex(where: { $0.id == selectedWorkspace?.id }) else { return }
+        let stub = RequestStub(from: request)
+        var workspace = workspaces[wsIndex]
+        workspace.collections = workspace.collections.map { collection in
+            var col = collection
+            col.items = updateStubInItems(requestId: request.id, stub: stub, in: col.items)
+            return col
+        }
+        workspaces[wsIndex] = workspace
+    }
+
+    private func updateStubInItems(requestId: UUID, stub: RequestStub, in items: [Item]) -> [Item] {
+        items.map { item in
+            switch item {
+            case .request(let s):
+                return s.id == requestId ? .request(stub) : item
+            case .folder(var f):
+                f.items = updateStubInItems(requestId: requestId, stub: stub, in: f.items)
+                return .folder(f)
+            }
+        }
+    }
+
+    func importPostmanCollection(folder: Folder, requests: [Request]) {
         guard var workspace = selectedWorkspace,
               let wsIndex = workspaces.firstIndex(where: { $0.id == workspace.id }) else { return }
+
+        // Save all request detail files
+        for request in requests {
+            try? StorageService.saveRequest(request)
+        }
 
         if workspace.collections.isEmpty {
             workspace.collections.append(
@@ -337,13 +382,17 @@ class AppState: ObservableObject {
             id: UUID(), name: "New Request", method: method, url: "",
             params: [], headers: [], body: .none, auth: .none
         )
+        let stub = RequestStub(from: newRequest)
+
+        // Save full request to its own file
+        try? StorageService.saveRequest(newRequest)
 
         if workspace.collections.isEmpty {
             workspace.collections.append(
-                Collection(id: UUID(), name: "Requests", items: [.request(newRequest)])
+                Collection(id: UUID(), name: "Requests", items: [.request(stub)])
             )
         } else {
-            workspace.collections[0].items.append(.request(newRequest))
+            workspace.collections[0].items.append(.request(stub))
         }
 
         workspaces[wsIndex] = workspace
@@ -380,9 +429,13 @@ class AppState: ObservableObject {
         copy.id = UUID()
         copy.name = "\(request.name) (Copy)"
 
+        // Save full copy to its own detail file
+        try? StorageService.saveRequest(copy)
+
+        let stub = RequestStub(from: copy)
         workspace.collections = workspace.collections.map { collection in
             var col = collection
-            col.items = insertAfter(requestId: request.id, newItem: .request(copy), in: col.items)
+            col.items = insertAfter(requestId: request.id, newItem: .request(stub), in: col.items)
             return col
         }
 

@@ -225,27 +225,15 @@ final class FuzzySearchTests: XCTestCase {
     // MARK: - Helpers
 
     private func makeTestWorkspace() -> Workspace {
-        let nestedRequest = Request(
-            id: UUID(), name: "Nested Request", method: .POST,
-            url: "https://api.example.com/auth/token",
-            params: [], headers: [], body: .none, auth: .none
-        )
-        let folder = Folder(id: UUID(), name: "Auth", items: [.request(nestedRequest)])
+        let nestedStub = RequestStub(name: "Nested Request", method: .POST, url: "https://api.example.com/auth/token")
+        let folder = Folder(id: UUID(), name: "Auth", items: [.request(nestedStub)])
 
-        let loginRequest = Request(
-            id: UUID(), name: "Login", method: .POST,
-            url: "https://api.example.com/login",
-            params: [], headers: [], body: .none, auth: .none
-        )
-        let getUsersRequest = Request(
-            id: UUID(), name: "Get Users", method: .GET,
-            url: "https://api.example.com/users",
-            params: [], headers: [], body: .none, auth: .none
-        )
+        let loginStub = RequestStub(name: "Login", method: .POST, url: "https://api.example.com/login")
+        let getUsersStub = RequestStub(name: "Get Users", method: .GET, url: "https://api.example.com/users")
 
         let collection = Collection(
             id: UUID(), name: "Requests",
-            items: [.request(loginRequest), .request(getUsersRequest), .folder(folder)]
+            items: [.request(loginStub), .request(getUsersStub), .folder(folder)]
         )
 
         return Workspace(id: UUID(), name: "Test", collections: [collection])

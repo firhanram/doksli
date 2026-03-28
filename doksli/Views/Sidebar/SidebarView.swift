@@ -235,23 +235,23 @@ struct SidebarView: View {
                 }
             )
 
-        case .request(let request):
+        case .request(let stub):
             return AnyView(
                 RequestRow(
-                    request: request,
-                    isActive: appState.selectedRequest?.id == request.id
+                    stub: stub,
+                    isActive: appState.selectedRequest?.id == stub.id
                 )
                 .contentShape(Rectangle())
                 .onTapGesture {
-                    appState.selectedRequest = request
+                    appState.selectRequest(stub: stub)
                 }
-                .contextMenu { requestContextMenu(request) }
+                .contextMenu { requestContextMenu(stub) }
                 .onDrag {
-                    draggedItemId = request.id
-                    return NSItemProvider(object: request.id.uuidString as NSString)
+                    draggedItemId = stub.id
+                    return NSItemProvider(object: stub.id.uuidString as NSString)
                 }
                 .padding(.leading, AppSpacing.lg)
-                .id(request.id)
+                .id(stub.id)
             )
         }
     }
@@ -259,15 +259,15 @@ struct SidebarView: View {
     // MARK: - Context menus
 
     @ViewBuilder
-    private func requestContextMenu(_ request: Request) -> some View {
+    private func requestContextMenu(_ stub: RequestStub) -> some View {
         Button {
-            renameRequest(request)
+            renameRequest(stub)
         } label: {
             Label("Rename", systemImage: "pencil")
         }
 
         Button {
-            duplicateRequest(request)
+            duplicateRequest(stub)
         } label: {
             Label("Duplicate", systemImage: "doc.on.doc")
         }
@@ -275,7 +275,7 @@ struct SidebarView: View {
         Divider()
 
         Button(role: .destructive) {
-            confirmDelete(requestId: request.id, name: request.name)
+            confirmDelete(requestId: stub.id, name: stub.name)
         } label: {
             Label("Delete", systemImage: "trash")
         }
@@ -345,17 +345,27 @@ struct SidebarView: View {
 
     // MARK: - Context menu actions
 
-    private func duplicateRequest(_ request: Request) {
+    private func duplicateRequest(_ stub: RequestStub) {
         guard var workspace = appState.selectedWorkspace,
               let wsIndex = appState.workspaces.firstIndex(where: { $0.id == workspace.id }) else { return }
 
-        var copy = request
-        copy.id = UUID()
-        copy.name = "\(request.name) (Copy)"
+        // Load full request from disk, or fall back to stub fields
+        let source = StorageService.loadRequest(id: stub.id) ?? Request(
+            id: stub.id, name: stub.name, method: stub.method, url: stub.url,
+            params: [], headers: [], body: .none, auth: .none
+        )
 
+        var copy = source
+        copy.id = UUID()
+        copy.name = "\(source.name) (Copy)"
+
+        // Save copy's detail file
+        try? StorageService.saveRequest(copy)
+
+        let copyStub = RequestStub(from: copy)
         workspace.collections = workspace.collections.map { collection in
             var col = collection
-            col.items = insertAfter(requestId: request.id, newItem: .request(copy), in: col.items)
+            col.items = insertAfter(requestId: stub.id, newItem: .request(copyStub), in: col.items)
             return col
         }
 
@@ -375,6 +385,15 @@ struct SidebarView: View {
         guard var workspace = appState.selectedWorkspace,
               let wsIndex = appState.workspaces.firstIndex(where: { $0.id == workspace.id }) else { return }
 
+        // Collect request IDs being deleted (for detail file cleanup)
+        var deletedRequestIds: [UUID] = []
+        if let rid = requestId {
+            deletedRequestIds.append(rid)
+        }
+        if let fid = folderId {
+            collectRequestIds(in: workspace.collections.flatMap(\.items), folderId: fid, into: &deletedRequestIds)
+        }
+
         workspace.collections = workspace.collections.map { collection in
             var col = collection
             col.items = removeItem(requestId: requestId, folderId: folderId, from: col.items)
@@ -388,6 +407,36 @@ struct SidebarView: View {
         appState.workspaces[wsIndex] = workspace
         appState.selectedWorkspace = workspace
         appState.saveWorkspaces()
+
+        // Delete detail files for removed requests
+        for id in deletedRequestIds {
+            StorageService.deleteRequest(id: id)
+        }
+    }
+
+    /// Collects all request IDs inside a folder (for cascade delete of detail files).
+    private func collectRequestIds(in items: [Item], folderId: UUID, into ids: inout [UUID]) {
+        for item in items {
+            switch item {
+            case .request(let stub):
+                ids.append(stub.id)
+            case .folder(let f):
+                if f.id == folderId {
+                    collectAllRequestIds(in: f.items, into: &ids)
+                } else {
+                    collectRequestIds(in: f.items, folderId: folderId, into: &ids)
+                }
+            }
+        }
+    }
+
+    private func collectAllRequestIds(in items: [Item], into ids: inout [UUID]) {
+        for item in items {
+            switch item {
+            case .request(let stub): ids.append(stub.id)
+            case .folder(let f): collectAllRequestIds(in: f.items, into: &ids)
+            }
+        }
     }
 
     private func addRequestInFolder(_ folder: Folder, method: HTTPMethod = .GET) {
@@ -398,10 +447,14 @@ struct SidebarView: View {
             id: UUID(), name: "New Request", method: method, url: "",
             params: [], headers: [], body: .none, auth: .none
         )
+        let stub = RequestStub(from: newRequest)
+
+        // Save full request to its own file
+        try? StorageService.saveRequest(newRequest)
 
         workspace.collections = workspace.collections.map { collection in
             var col = collection
-            col.items = addToFolder(folderId: folder.id, newItem: .request(newRequest), in: col.items)
+            col.items = addToFolder(folderId: folder.id, newItem: .request(stub), in: col.items)
             return col
         }
 
@@ -412,9 +465,9 @@ struct SidebarView: View {
         appState.saveWorkspaces()
     }
 
-    private func renameRequest(_ request: Request) {
-        renamingRequestId = request.id
-        renameText = request.name
+    private func renameRequest(_ stub: RequestStub) {
+        renamingRequestId = stub.id
+        renameText = stub.name
         isRenamingRequest = true
     }
 
@@ -431,6 +484,7 @@ struct SidebarView: View {
               var workspace = appState.selectedWorkspace,
               let wsIndex = appState.workspaces.firstIndex(where: { $0.id == workspace.id }) else { return }
 
+        // Update stub in tree
         workspace.collections = workspace.collections.map { collection in
             var col = collection
             col.items = renameRequestInItems(requestId: rid, newName: trimmed, in: col.items)
@@ -439,8 +493,19 @@ struct SidebarView: View {
 
         appState.workspaces[wsIndex] = workspace
         appState.selectedWorkspace = workspace
+
+        // Update in-memory selected request and detail file
         if appState.selectedRequest?.id == rid {
             appState.selectedRequest?.name = trimmed
+            if let updated = appState.selectedRequest {
+                try? StorageService.saveRequest(updated)
+            }
+        } else {
+            // Not currently selected — load, rename, save detail file
+            if var request = StorageService.loadRequest(id: rid) {
+                request.name = trimmed
+                try? StorageService.saveRequest(request)
+            }
         }
         appState.saveWorkspaces()
     }
@@ -466,9 +531,9 @@ struct SidebarView: View {
     private func renameRequestInItems(requestId: UUID, newName: String, in items: [Item]) -> [Item] {
         items.map { item in
             switch item {
-            case .request(var r):
-                if r.id == requestId { r.name = newName }
-                return .request(r)
+            case .request(var stub):
+                if stub.id == requestId { stub.name = newName }
+                return .request(stub)
             case .folder(var f):
                 f.items = renameRequestInItems(requestId: requestId, newName: newName, in: f.items)
                 return .folder(f)
@@ -820,17 +885,19 @@ struct SidebarView: View {
     }
 
     private func selectSearchResult(_ result: SearchResult) {
-        guard let workspace = appState.selectedWorkspace else { return }
-
         let isRequest = result.method != nil
 
         // Expand parent folders
         appState.revealItem(id: result.id)
 
         if isRequest {
-            if let request = findRequest(id: result.id, in: workspace) {
-                appState.selectedRequest = request
-            }
+            let stub = RequestStub(
+                id: result.id,
+                name: result.name,
+                method: result.method ?? .GET,
+                url: result.url ?? ""
+            )
+            appState.selectRequest(stub: stub)
         } else {
             appState.expandedFolders.insert(result.id)
         }
@@ -855,29 +922,6 @@ struct SidebarView: View {
                 appState.scrollToRequestId = result.id
             }
         }
-    }
-
-    private func findRequest(id: UUID, in workspace: Workspace) -> Request? {
-        for collection in workspace.collections {
-            if let found = findRequestInItems(id: id, items: collection.items) {
-                return found
-            }
-        }
-        return nil
-    }
-
-    private func findRequestInItems(id: UUID, items: [Item]) -> Request? {
-        for item in items {
-            switch item {
-            case .request(let r):
-                if r.id == id { return r }
-            case .folder(let f):
-                if let found = findRequestInItems(id: id, items: f.items) {
-                    return found
-                }
-            }
-        }
-        return nil
     }
 
     // MARK: - Empty states
@@ -943,8 +987,8 @@ struct SidebarView: View {
         guard panel.runModal() == .OK, let url = panel.url else { return }
 
         do {
-            let folder = try PostmanImporter.importCollection(from: url)
-            appState.importPostmanFolder(folder)
+            let result = try PostmanImporter.importCollection(from: url)
+            appState.importPostmanCollection(folder: result.folder, requests: result.requests)
         } catch {
             importError = error.localizedDescription
             showImportError = true

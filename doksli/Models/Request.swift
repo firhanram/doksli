@@ -201,6 +201,28 @@ enum Auth: Codable, Equatable {
     }
 }
 
+// MARK: - RequestStub
+
+/// Lightweight metadata for the sidebar tree — no body, params, headers, or auth.
+/// Full request details are loaded on demand from per-request files.
+struct RequestStub: Codable, Identifiable, Equatable {
+    var id: UUID
+    var name: String
+    var method: HTTPMethod
+    var url: String
+
+    init(id: UUID = UUID(), name: String, method: HTTPMethod, url: String) {
+        self.id = id
+        self.name = name
+        self.method = method
+        self.url = url
+    }
+
+    init(from request: Request) {
+        self.init(id: request.id, name: request.name, method: request.method, url: request.url)
+    }
+}
+
 // MARK: - Request
 
 struct Request: Codable, Identifiable, Equatable {

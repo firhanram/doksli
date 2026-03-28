@@ -187,34 +187,19 @@ struct RequestView: View {
     // MARK: - Workspace sync
 
     private func syncRequestToWorkspace(_ request: Request) {
-        guard let wsIndex = appState.workspaces.firstIndex(where: { $0.id == appState.selectedWorkspace?.id }) else { return }
+        // Update stub in tree (name/method/url might have changed)
+        appState.updateStubInTree(for: request)
 
-        // Update in-memory workspace (fast)
-        var workspace = appState.workspaces[wsIndex]
-        workspace.collections = workspace.collections.map { collection in
-            var col = collection
-            col.items = updateRequestInItems(requestId: request.id, request: request, in: col.items)
-            return col
+        // Save full request detail file asynchronously
+        let requestCopy = request
+        DispatchQueue.global(qos: .utility).async {
+            try? StorageService.saveRequest(requestCopy)
         }
-        appState.workspaces[wsIndex] = workspace
 
-        // Save to disk asynchronously — don't block the main thread
+        // Save tree (stubs only) asynchronously
         let workspaces = appState.workspaces
         DispatchQueue.global(qos: .utility).async {
             try? StorageService.saveWorkspaces(workspaces)
-        }
-    }
-
-    private func updateRequestInItems(requestId: UUID, request: Request, in items: [Item]) -> [Item] {
-        items.map { item in
-            switch item {
-            case .request(var r):
-                if r.id == requestId { r = request }
-                return .request(r)
-            case .folder(var f):
-                f.items = updateRequestInItems(requestId: requestId, request: request, in: f.items)
-                return .folder(f)
-            }
         }
     }
 }
