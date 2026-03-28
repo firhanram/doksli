@@ -81,16 +81,21 @@ struct RequestView: View {
     private func flushSync() {
         syncWorkItem?.cancel()
         syncWorkItem = nil
-        commitEdits()
+        // Save pending edits to workspace without touching appState.selectedRequest
+        // (the user may have already switched to a different request)
+        if let request = editBuffer.request {
+            syncRequestToWorkspace(request)
+        }
     }
 
     private func commitEdits() {
         syncWorkItem = nil
         guard let request = editBuffer.request else { return }
-        if appState.selectedRequest != request {
+        // Only update appState.selectedRequest if still editing the same request
+        if appState.selectedRequest?.id == request.id, appState.selectedRequest != request {
             appState.selectedRequest = request
-            syncRequestToWorkspace(request)
         }
+        syncRequestToWorkspace(request)
     }
 
     // MARK: - Request editor
