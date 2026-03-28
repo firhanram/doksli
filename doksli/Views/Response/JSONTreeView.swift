@@ -229,17 +229,10 @@ struct JSONTreeView: View {
                 Color.clear.frame(width: 12, height: 12)
             }
 
-            // Key label
-            if let key = row.key {
-                highlightedText("\"\(key)\"", query: searchQuery, baseColor: AppColors.jsonKey, isActive: isActiveMatch)
-                    .font(AppFonts.mono)
-                Text(":")
-                    .font(AppFonts.mono)
-                    .foregroundColor(AppColors.jsonPunctuation)
-            }
-
-            // Value label
-            valueLabel(for: row, isActive: isActiveMatch)
+            // Key + value as a single selectable Text
+            keyValueText(for: row, isActive: isActiveMatch)
+                .font(AppFonts.mono)
+                .textSelection(.enabled)
         }
         .padding(.leading, CGFloat(row.depth) * AppSpacing.lg)
         .padding(.vertical, AppSpacing.xs)
@@ -254,6 +247,21 @@ struct JSONTreeView: View {
         .onTapGesture {
             handleTap(row)
         }
+    }
+
+    // MARK: - Key + value text
+
+    private func keyValueText(for row: JSONRow, isActive: Bool) -> Text {
+        var result = Text("")
+
+        if let key = row.key {
+            result = result
+                + highlightedText("\"\(key)\"", query: searchQuery, baseColor: AppColors.jsonKey, isActive: isActive)
+                + Text(" : ").foregroundColor(AppColors.jsonPunctuation)
+        }
+
+        result = result + valueLabelText(for: row, isActive: isActive)
+        return result
     }
 
     // MARK: - Row contains query check
@@ -308,39 +316,29 @@ struct JSONTreeView: View {
 
     // MARK: - Value label
 
-    @ViewBuilder
-    private func valueLabel(for row: JSONRow, isActive: Bool) -> some View {
+    private func valueLabelText(for row: JSONRow, isActive: Bool) -> Text {
         switch row.kind {
         case .objectOpen(let count):
             let expanded = expandedPaths.contains(row.path)
-            Text(expanded ? "{" : "{ \(count) keys }")
-                .font(AppFonts.mono)
+            return Text(expanded ? "{" : "{ \(count) keys }")
                 .foregroundColor(AppColors.jsonPunctuation)
         case .arrayOpen(let count):
             let expanded = expandedPaths.contains(row.path)
-            Text(expanded ? "[" : "[ \(count) items ]")
-                .font(AppFonts.mono)
+            return Text(expanded ? "[" : "[ \(count) items ]")
                 .foregroundColor(AppColors.jsonPunctuation)
         case .closingBracket(let bracket):
-            Text(bracket)
-                .font(AppFonts.mono)
+            return Text(bracket)
                 .foregroundColor(AppColors.jsonPunctuation)
         case .stringValue(let string):
-            highlightedText("\"\(string)\"", query: searchQuery, baseColor: AppColors.jsonString, isActive: isActive)
-                .font(AppFonts.mono)
-                .fixedSize(horizontal: false, vertical: true)
+            return highlightedText("\"\(string)\"", query: searchQuery, baseColor: AppColors.jsonString, isActive: isActive)
         case .numberValue(let number):
-            highlightedText("\(number)", query: searchQuery, baseColor: AppColors.jsonNumber, isActive: isActive)
-                .font(AppFonts.mono)
+            return highlightedText("\(number)", query: searchQuery, baseColor: AppColors.jsonNumber, isActive: isActive)
         case .boolValue(let bool):
-            highlightedText(bool ? "true" : "false", query: searchQuery, baseColor: AppColors.jsonBoolean, isActive: isActive)
-                .font(AppFonts.mono)
+            return highlightedText(bool ? "true" : "false", query: searchQuery, baseColor: AppColors.jsonBoolean, isActive: isActive)
         case .nullValue:
-            highlightedText("null", query: searchQuery, baseColor: AppColors.jsonNull, isActive: isActive)
-                .font(AppFonts.mono)
+            return highlightedText("null", query: searchQuery, baseColor: AppColors.jsonNull, isActive: isActive)
         case .unknownValue(let desc):
-            highlightedText(desc, query: searchQuery, baseColor: AppColors.textSecondary, isActive: isActive)
-                .font(AppFonts.mono)
+            return highlightedText(desc, query: searchQuery, baseColor: AppColors.textSecondary, isActive: isActive)
         }
     }
 
