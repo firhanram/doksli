@@ -4,6 +4,7 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject var appState: AppState
+    @EnvironmentObject var shortcutStore: ShortcutStore
     @State private var newWorkspaceName = ""
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
 
@@ -27,6 +28,7 @@ struct ContentView: View {
         .sheet(isPresented: $appState.showSettings) {
             SettingsView()
                 .environmentObject(appState)
+                .environmentObject(shortcutStore)
         }
         .alert("New Workspace", isPresented: $appState.showCreateWorkspace) {
             TextField("Workspace name", text: $newWorkspaceName)

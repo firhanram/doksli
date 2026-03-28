@@ -10,6 +10,7 @@ import SwiftUI
 @main
 struct doksliApp: App {
     @StateObject private var appState = AppState()
+    @StateObject private var shortcutStore = ShortcutStore()
 
     init() {
         setupStorageDirectory()
@@ -24,46 +25,48 @@ struct doksliApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(appState)
+                .environmentObject(shortcutStore)
                 .preferredColorScheme(appState.preferredScheme)
         }
         .commands {
             CommandGroup(replacing: .newItem) {
-                Button("New Request") { appState.addNewRequest() }
-                    .keyboardShortcut("n", modifiers: .command)
-                Button("New Folder") { appState.addNewFolder() }
-                    .keyboardShortcut("n", modifiers: [.command, .shift])
+                shortcutButton(.newRequest, "New Request") { appState.addNewRequest() }
+                shortcutButton(.newFolder, "New Folder") { appState.addNewFolder() }
                 Divider()
-                Button("New Workspace") { appState.showCreateWorkspace = true }
-                    .keyboardShortcut("w", modifiers: [.command, .shift])
+                shortcutButton(.newWorkspace, "New Workspace") { appState.showCreateWorkspace = true }
             }
 
             CommandGroup(after: .sidebar) {
-                Button("Toggle Sidebar") {
+                shortcutButton(.toggleSidebar, "Toggle Sidebar") {
                     NSApp.keyWindow?.firstResponder?.tryToPerform(
                         #selector(NSSplitViewController.toggleSidebar(_:)), with: nil
                     )
                 }
-                .keyboardShortcut("b", modifiers: .command)
             }
 
             CommandMenu("View") {
-                Button("Settings...") { appState.showSettings = true }
-                    .keyboardShortcut(",", modifiers: .command)
+                shortcutButton(.settings, "Settings...") { appState.showSettings = true }
             }
 
             CommandMenu("Request") {
-                Button("Send Request") { appState.sendCurrentRequest() }
-                    .keyboardShortcut(.return, modifiers: .command)
-                Button("Duplicate Request") { appState.duplicateSelectedRequest() }
-                    .keyboardShortcut("d", modifiers: .command)
+                shortcutButton(.sendRequest, "Send Request") { appState.sendCurrentRequest() }
+                shortcutButton(.duplicateRequest, "Duplicate Request") { appState.duplicateSelectedRequest() }
                 Divider()
-                Button("Quick Search") { appState.showQuickSearch = true }
-                    .keyboardShortcut("p", modifiers: .command)
-                Button("Clear Response") { appState.clearResponse() }
-                    .keyboardShortcut("k", modifiers: .command)
-                Button("Environments") { appState.showEnvEditor = true }
-                    .keyboardShortcut("e", modifiers: .command)
+                shortcutButton(.quickSearch, "Quick Search") { appState.showQuickSearch = true }
+                shortcutButton(.clearResponse, "Clear Response") { appState.clearResponse() }
+                shortcutButton(.environments, "Environments") { appState.showEnvEditor = true }
             }
+        }
+    }
+
+    @ViewBuilder
+    private func shortcutButton(_ action: ShortcutAction, _ label: String, perform: @escaping () -> Void) -> some View {
+        let ks = shortcutStore.shortcut(for: action)
+        if let key = ks.swiftUIKey {
+            Button(label, action: perform)
+                .keyboardShortcut(key, modifiers: ks.swiftUIModifiers)
+        } else {
+            Button(label, action: perform)
         }
     }
 
