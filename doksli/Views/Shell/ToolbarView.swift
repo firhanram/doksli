@@ -7,6 +7,12 @@ struct ToolbarView: ToolbarContent {
 
     var body: some ToolbarContent {
 
+        // MARK: Environment selector
+
+        ToolbarItem(placement: .primaryAction) {
+            EnvSelectorMenu(appState: appState)
+        }
+
         // MARK: Settings
 
         ToolbarItem(placement: .primaryAction) {
@@ -16,12 +22,6 @@ struct ToolbarView: ToolbarContent {
                 Image(systemName: "gear")
                     .foregroundColor(AppColors.textTertiary)
             }
-        }
-
-        // MARK: Environment selector
-
-        ToolbarItem(placement: .primaryAction) {
-            EnvSelectorMenu(appState: appState)
         }
 
     }
