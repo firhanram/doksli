@@ -9,16 +9,27 @@ enum RequestTab: String, CaseIterable {
     case auth = "Auth"
 }
 
+// MARK: - Non-reactive edit buffer
+
+/// Reference-type buffer that holds the in-progress request.
+/// Mutations do NOT trigger SwiftUI view updates — only the specific
+/// TextField being edited updates (via its own internal state).
+private class EditBuffer {
+    var request: Request?
+}
+
 // MARK: - RequestView
 
 struct RequestView: View {
     @EnvironmentObject var appState: AppState
     @State private var activeTab: RequestTab = .params
-    @State private var previousRequestId: UUID?
+    @State private var displayedRequestId: UUID?
+    @State private var syncWorkItem: DispatchWorkItem?
+    @State private var editBuffer = EditBuffer()
 
     var body: some View {
         Group {
-            if appState.selectedRequest != nil {
+            if displayedRequestId != nil {
                 requestEditor
             } else {
                 emptyState
@@ -27,27 +38,77 @@ struct RequestView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(AppColors.canvas)
         .onChange(of: appState.selectedRequest?.id) { newId in
-            if let prevId = previousRequestId, prevId != newId {
-                syncRequestToWorkspace()
-            }
-            previousRequestId = newId
+            // Request switched — flush pending edits, load new request into buffer
+            flushSync()
+            editBuffer.request = appState.selectedRequest
+            displayedRequestId = newId
         }
-        .onChange(of: appState.selectedRequest) { _ in
-            syncRequestToWorkspace()
+        .onChange(of: appState.selectedRequest) { newRequest in
+            // External update (e.g. rename from sidebar)
+            guard let newRequest = newRequest else {
+                editBuffer.request = nil
+                displayedRequestId = nil
+                return
+            }
+            if editBuffer.request?.id != newRequest.id {
+                editBuffer.request = newRequest
+                displayedRequestId = newRequest.id
+            } else if syncWorkItem == nil {
+                // No pending local edits — accept external update
+                editBuffer.request = newRequest
+            }
+        }
+        .onAppear {
+            editBuffer.request = appState.selectedRequest
+            displayedRequestId = appState.selectedRequest?.id
+        }
+        .onDisappear {
+            flushSync()
+        }
+    }
+
+    // MARK: - Debounced sync
+
+    private func debouncedSync() {
+        syncWorkItem?.cancel()
+        let workItem = DispatchWorkItem {
+            commitEdits()
+        }
+        syncWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: workItem)
+    }
+
+    private func flushSync() {
+        syncWorkItem?.cancel()
+        syncWorkItem = nil
+        commitEdits()
+    }
+
+    private func commitEdits() {
+        syncWorkItem = nil
+        guard let request = editBuffer.request else { return }
+        if appState.selectedRequest != request {
+            appState.selectedRequest = request
+            syncRequestToWorkspace(request)
         }
     }
 
     // MARK: - Request editor
 
+    /// Binding that reads/writes the EditBuffer directly.
+    /// Because EditBuffer is a reference type, setting it does NOT
+    /// trigger RequestView.body to re-evaluate — only the specific
+    /// child view being edited updates via its own binding chain.
     private var requestBinding: Binding<Request> {
         Binding(
-            get: {
-                appState.selectedRequest ?? Request(
-                    id: UUID(), name: "", method: .GET, url: "",
-                    params: [], headers: [], body: .none, auth: .none
-                )
-            },
-            set: { appState.selectedRequest = $0 }
+            get: { editBuffer.request ?? Request(
+                id: UUID(), name: "", method: .GET, url: "",
+                params: [], headers: [], body: .none, auth: .none
+            ) },
+            set: { newValue in
+                editBuffer.request = newValue
+                debouncedSync()
+            }
         )
     }
 
@@ -115,9 +176,8 @@ struct RequestView: View {
 
     // MARK: - Workspace sync
 
-    private func syncRequestToWorkspace() {
-        guard let request = appState.selectedRequest,
-              let wsIndex = appState.workspaces.firstIndex(where: { $0.id == appState.selectedWorkspace?.id }) else { return }
+    private func syncRequestToWorkspace(_ request: Request) {
+        guard let wsIndex = appState.workspaces.firstIndex(where: { $0.id == appState.selectedWorkspace?.id }) else { return }
 
         var workspace = appState.workspaces[wsIndex]
         workspace.collections = workspace.collections.map { collection in
