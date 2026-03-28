@@ -136,7 +136,6 @@ class AppState: ObservableObject {
 
     func loadWorkspaces() {
         workspaces = StorageService.loadWorkspaces()
-        responseCache = StorageService.loadResponseCache()
         selectedWorkspace = workspaces.first
     }
 
@@ -273,7 +272,6 @@ class AppState: ObservableObject {
         if let id = selectedRequest?.id {
             responseCache.removeValue(forKey: id)
             errorCache.removeValue(forKey: id)
-            saveResponseCache()
         }
     }
 
@@ -287,14 +285,6 @@ class AppState: ObservableObject {
             errorCache[requestId] = error
         } else {
             errorCache.removeValue(forKey: requestId)
-        }
-        saveResponseCache()
-    }
-
-    private func saveResponseCache() {
-        let cache = responseCache
-        DispatchQueue.global(qos: .utility).async {
-            try? StorageService.saveResponseCache(cache)
         }
     }
 
