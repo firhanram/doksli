@@ -115,11 +115,8 @@ import Foundation
     #expect(decoded.url == "https://api.example.com/users")
     #expect(decoded.headers.count == 1)
     #expect(decoded.headers[0].key == "Content-Type")
-    if case .json(let body) = decoded.body {
-        #expect(body == "{\"name\":\"Alice\"}")
-    } else {
-        Issue.record("Expected .json body")
-    }
+    #expect(decoded.body.mode == .json)
+    #expect(decoded.body.jsonBody == "{\"name\":\"Alice\"}")
     if case .bearer(let token) = decoded.auth {
         #expect(token == "sk_live_abc123")
     } else {

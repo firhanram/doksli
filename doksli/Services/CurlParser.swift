@@ -237,7 +237,7 @@ enum CurlParser {
         }
 
         // Determine body
-        let body: RequestBody
+        var body: RequestBody
         if !formPairs.isEmpty {
             body = .formData(formPairs)
         } else if let data = bodyData.last {
@@ -259,7 +259,7 @@ enum CurlParser {
             resolvedMethod = .GET
         } else if let m = method {
             resolvedMethod = m
-        } else if body != .none {
+        } else if body.mode != .none {
             resolvedMethod = .POST
         } else {
             resolvedMethod = .GET
@@ -268,7 +268,7 @@ enum CurlParser {
         // Filter out Content-Type from headers if it was auto-added by CurlBuilder
         // (the body type already implies it)
         let filteredHeaders: [KVPair]
-        if case .json = body {
+        if body.mode == .json {
             filteredHeaders = headers.filter { $0.key.lowercased() != "content-type" ||
                 !$0.value.lowercased().contains("json") }
         } else {

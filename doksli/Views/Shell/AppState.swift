@@ -194,7 +194,7 @@ class AppState: ObservableObject {
               !isLoading else { return }
 
         // Validate: GET and HEAD must not have a body
-        if (request.method == .GET || request.method == .HEAD), request.body != .none {
+        if (request.method == .GET || request.method == .HEAD), request.body.mode != .none {
             pendingResponse = nil
             lastError = "\(request.method.rawValue) method must not have a body"
             cacheCurrentResponse(for: request.id)

@@ -71,11 +71,11 @@ struct HTTPClient {
         }
 
         // 6. Encode body
-        switch request.body {
+        switch request.body.mode {
         case .none:
             break
-        case .json(let string):
-            let resolved = VariableResolver.resolve(string, environment: environment)
+        case .json, .raw:
+            let resolved = VariableResolver.resolve(request.body.jsonBody, environment: environment)
             urlRequest.httpBody = Data(resolved.utf8)
             // Auto-set Content-Type if user hasn't set one
             if urlRequest.value(forHTTPHeaderField: "Content-Type") == nil {
@@ -86,20 +86,20 @@ struct HTTPClient {
                     urlRequest.setValue("text/plain", forHTTPHeaderField: "Content-Type")
                 }
             }
-        case .formData(let pairs):
-            let resolvedPairs = Self.resolvePairs(pairs, environment: environment)
+        case .formData:
+            let resolvedPairs = Self.resolvePairs(request.body.formDataPairs, environment: environment)
             let boundary = UUID().uuidString
             urlRequest.setValue(
                 "multipart/form-data; boundary=\(boundary)",
                 forHTTPHeaderField: "Content-Type"
             )
             urlRequest.httpBody = buildMultipartBody(pairs: resolvedPairs, boundary: boundary)
-        case .urlEncoded(let pairs):
+        case .urlEncoded:
             urlRequest.setValue(
                 "application/x-www-form-urlencoded",
                 forHTTPHeaderField: "Content-Type"
             )
-            urlRequest.httpBody = buildURLEncodedBody(pairs: pairs)
+            urlRequest.httpBody = buildURLEncodedBody(pairs: request.body.urlEncodedPairs)
         }
 
         return urlRequest

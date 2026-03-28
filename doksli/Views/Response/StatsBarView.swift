@@ -174,8 +174,9 @@ enum CurlBuilder {
         }
 
         // Body
-        switch request.body {
-        case .json(let text):
+        switch request.body.mode {
+        case .json, .raw:
+            let text = request.body.jsonBody
             if !text.isEmpty {
                 let resolved = resolve(text)
                 // Auto-add Content-Type if not already in headers
@@ -189,8 +190,8 @@ enum CurlBuilder {
                 let escaped = resolved.replacingOccurrences(of: "'", with: "'\\''")
                 parts.append("-d '\(escaped)'")
             }
-        case .formData(let pairs):
-            let flattened = HTTPClient.flattenPairs(pairs)
+        case .formData:
+            let flattened = HTTPClient.flattenPairs(request.body.formDataPairs)
             for item in flattened where !item.name.isEmpty {
                 if item.pair.valueType == .file {
                     parts.append("-F '\(item.name)=@\(item.pair.value)'")
@@ -198,8 +199,8 @@ enum CurlBuilder {
                     parts.append("-F '\(item.name)=\(item.pair.value)'")
                 }
             }
-        case .urlEncoded(let pairs):
-            let flattened = HTTPClient.flattenPairs(pairs)
+        case .urlEncoded:
+            let flattened = HTTPClient.flattenPairs(request.body.urlEncodedPairs)
             if !flattened.isEmpty {
                 let body = flattened
                     .map { "\($0.name)=\($0.pair.value)" }

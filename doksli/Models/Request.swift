@@ -43,56 +43,105 @@ enum HTTPMethod: String, Codable {
     case HEAD
 }
 
+// MARK: - BodyMode
+
+enum BodyMode: String, Codable, Equatable, CaseIterable {
+    case none, json, formData, urlEncoded
+    case raw // backward compat — decodes old data as .json
+
+    var label: String {
+        switch self {
+        case .none: return "None"
+        case .json, .raw: return "JSON"
+        case .formData: return "Form Data"
+        case .urlEncoded: return "URL Encoded"
+        }
+    }
+
+    /// Normalized mode (maps .raw → .json)
+    var normalized: BodyMode {
+        self == .raw ? .json : self
+    }
+}
+
 // MARK: - RequestBody
 
-enum RequestBody: Codable, Equatable {
-    case none
-    case json(String)
-    case formData([KVPair])
-    case urlEncoded([KVPair])
+/// Stores all body data simultaneously so switching modes never loses data.
+/// `mode` selects which data is active; `jsonBody`, `formDataPairs`, `urlEncodedPairs`
+/// always retain their values.
+struct RequestBody: Codable, Equatable {
+    var mode: BodyMode
+    var jsonBody: String
+    var formDataPairs: [KVPair]
+    var urlEncodedPairs: [KVPair]
+
+    static let none = RequestBody(mode: .none)
+
+    // MARK: - Convenience constructors (backward compat)
+
+    static func json(_ text: String) -> RequestBody {
+        RequestBody(mode: .json, jsonBody: text)
+    }
+
+    static func formData(_ pairs: [KVPair]) -> RequestBody {
+        RequestBody(mode: .formData, formDataPairs: pairs)
+    }
+
+    static func urlEncoded(_ pairs: [KVPair]) -> RequestBody {
+        RequestBody(mode: .urlEncoded, urlEncodedPairs: pairs)
+    }
+
+    // MARK: - Backward-compatible Codable
 
     private enum CodingKeys: String, CodingKey {
         case type, value
+        case jsonBody, formDataPairs, urlEncodedPairs
     }
 
-    private enum BodyType: String, Codable {
-        case none, json, formData, urlEncoded
-        case raw // backward compat — decodes old data as .json
+    init(mode: BodyMode, jsonBody: String = "", formDataPairs: [KVPair] = [], urlEncodedPairs: [KVPair] = []) {
+        self.mode = mode.normalized
+        self.jsonBody = jsonBody
+        self.formDataPairs = formDataPairs
+        self.urlEncodedPairs = urlEncodedPairs
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        let bodyType = try container.decode(BodyType.self, forKey: .type)
+
+        // New format: has all three fields
+        if let jsonBody = try container.decodeIfPresent(String.self, forKey: .jsonBody) {
+            self.mode = (try container.decode(BodyMode.self, forKey: .type)).normalized
+            self.jsonBody = jsonBody
+            self.formDataPairs = try container.decodeIfPresent([KVPair].self, forKey: .formDataPairs) ?? []
+            self.urlEncodedPairs = try container.decodeIfPresent([KVPair].self, forKey: .urlEncodedPairs) ?? []
+            return
+        }
+
+        // Legacy format: { type, value }
+        let bodyType = try container.decode(BodyMode.self, forKey: .type)
+        self.mode = bodyType.normalized
+        self.jsonBody = ""
+        self.formDataPairs = []
+        self.urlEncodedPairs = []
+
         switch bodyType {
         case .none:
-            self = .none
+            break
         case .json, .raw:
-            let string = try container.decode(String.self, forKey: .value)
-            self = .json(string)
+            self.jsonBody = try container.decode(String.self, forKey: .value)
         case .formData:
-            let pairs = try container.decode([KVPair].self, forKey: .value)
-            self = .formData(pairs)
+            self.formDataPairs = try container.decode([KVPair].self, forKey: .value)
         case .urlEncoded:
-            let pairs = try container.decode([KVPair].self, forKey: .value)
-            self = .urlEncoded(pairs)
+            self.urlEncodedPairs = try container.decode([KVPair].self, forKey: .value)
         }
     }
 
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        switch self {
-        case .none:
-            try container.encode(BodyType.none, forKey: .type)
-        case .json(let string):
-            try container.encode(BodyType.json, forKey: .type)
-            try container.encode(string, forKey: .value)
-        case .formData(let pairs):
-            try container.encode(BodyType.formData, forKey: .type)
-            try container.encode(pairs, forKey: .value)
-        case .urlEncoded(let pairs):
-            try container.encode(BodyType.urlEncoded, forKey: .type)
-            try container.encode(pairs, forKey: .value)
-        }
+        try container.encode(mode, forKey: .type)
+        try container.encode(jsonBody, forKey: .jsonBody)
+        try container.encode(formDataPairs, forKey: .formDataPairs)
+        try container.encode(urlEncodedPairs, forKey: .urlEncodedPairs)
     }
 }
 

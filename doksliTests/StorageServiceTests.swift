@@ -237,8 +237,8 @@ private func makeResponse(body: Data = Data("{\"ok\":true}".utf8)) -> Response {
     guard case .request(let r) = loaded[0].collections[0].items[0] else {
         Issue.record("Expected .request"); return
     }
-    guard case .json(let str) = r.body else { Issue.record("Expected .json body"); return }
-    #expect(str == "{\"name\":\"Alice\"}")
+    #expect(r.body.mode == .json)
+    #expect(r.body.jsonBody == "{\"name\":\"Alice\"}")
 }
 
 @Test func requestFormDataBodyRoundTrip() throws {
@@ -255,10 +255,10 @@ private func makeResponse(body: Data = Data("{\"ok\":true}".utf8)) -> Response {
     guard case .request(let r) = loaded[0].collections[0].items[0] else {
         Issue.record("Expected .request"); return
     }
-    guard case .formData(let loadedPairs) = r.body else { Issue.record("Expected .formData body"); return }
-    #expect(loadedPairs.count == 1)
-    #expect(loadedPairs[0].key == "field")
-    #expect(loadedPairs[0].value == "val")
+    #expect(r.body.mode == .formData)
+    #expect(r.body.formDataPairs.count == 1)
+    #expect(r.body.formDataPairs[0].key == "field")
+    #expect(r.body.formDataPairs[0].value == "val")
 }
 
 @Test func requestURLEncodedBodyRoundTrip() throws {
@@ -275,10 +275,10 @@ private func makeResponse(body: Data = Data("{\"ok\":true}".utf8)) -> Response {
     guard case .request(let r) = loaded[0].collections[0].items[0] else {
         Issue.record("Expected .request"); return
     }
-    guard case .urlEncoded(let loadedPairs) = r.body else { Issue.record("Expected .urlEncoded body"); return }
-    #expect(loadedPairs.count == 1)
-    #expect(loadedPairs[0].key == "q")
-    #expect(loadedPairs[0].value == "hello")
+    #expect(r.body.mode == .urlEncoded)
+    #expect(r.body.urlEncodedPairs.count == 1)
+    #expect(r.body.urlEncodedPairs[0].key == "q")
+    #expect(r.body.urlEncodedPairs[0].value == "hello")
 }
 
 @Test func requestNoneBodyRoundTrip() throws {
@@ -294,7 +294,7 @@ private func makeResponse(body: Data = Data("{\"ok\":true}".utf8)) -> Response {
     guard case .request(let r) = loaded[0].collections[0].items[0] else {
         Issue.record("Expected .request"); return
     }
-    if case .none = r.body { } else { Issue.record("Expected .none body") }
+    #expect(r.body.mode == .none)
 }
 
 // MARK: - Response binary body round-trip

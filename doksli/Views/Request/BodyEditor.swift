@@ -20,27 +20,21 @@ struct BodyEditor: View {
 
     // MARK: - Mode picker
 
-    private var currentMode: BodyMode {
-        switch requestBody {
-        case .none: return .none
-        case .json: return .json
-        case .formData: return .formData
-        case .urlEncoded: return .urlEncoded
-        }
-    }
+    /// Modes shown in the picker (excludes .raw legacy)
+    private static let pickerModes: [BodyMode] = [.none, .json, .formData, .urlEncoded]
 
     private var modePicker: some View {
         HStack(spacing: AppSpacing.sm) {
-            ForEach(BodyMode.allCases, id: \.self) { mode in
+            ForEach(Self.pickerModes, id: \.self) { mode in
                 Button {
-                    switchMode(to: mode)
+                    requestBody.mode = mode
                 } label: {
                     Text(mode.label)
                         .font(AppFonts.body)
-                        .foregroundColor(currentMode == mode ? AppColors.brand : AppColors.textTertiary)
+                        .foregroundColor(requestBody.mode == mode ? AppColors.brand : AppColors.textTertiary)
                         .padding(.horizontal, AppSpacing.sm)
                         .padding(.vertical, AppSpacing.xs)
-                        .background(currentMode == mode ? AppColors.brandTint50 : Color.clear)
+                        .background(requestBody.mode == mode ? AppColors.brandTint50 : Color.clear)
                         .cornerRadius(AppSpacing.radiusBadge)
                 }
                 .buttonStyle(.plain)
@@ -52,23 +46,23 @@ struct BodyEditor: View {
 
     @ViewBuilder
     private var bodyContent: some View {
-        switch requestBody {
+        switch requestBody.mode {
         case .none:
             ScrollView {
                 placeholderView("This request has no body.")
             }
 
-        case .json:
-            RawBodyEditor(text: rawTextBinding)
+        case .json, .raw:
+            RawBodyEditor(text: $requestBody.jsonBody)
 
         case .formData:
             ScrollView {
-                KVEditor(pairs: formDataBinding, showValueType: true)
+                KVEditor(pairs: $requestBody.formDataPairs, showValueType: true)
             }
 
         case .urlEncoded:
             ScrollView {
-                KVEditor(pairs: urlEncodedBinding, showValueType: true, showFileOption: false)
+                KVEditor(pairs: $requestBody.urlEncodedPairs, showValueType: true, showFileOption: false)
             }
         }
     }
@@ -82,40 +76,6 @@ struct BodyEditor: View {
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    // MARK: - Mode switching
-
-    private func switchMode(to mode: BodyMode) {
-        switch mode {
-        case .none: requestBody = .none
-        case .json: requestBody = .json("")
-        case .formData: requestBody = .formData([])
-        case .urlEncoded: requestBody = .urlEncoded([])
-        }
-    }
-
-    // MARK: - Bindings to enum associated values
-
-    private var rawTextBinding: Binding<String> {
-        Binding(
-            get: { if case .json(let s) = requestBody { return s } else { return "" } },
-            set: { requestBody = .json($0) }
-        )
-    }
-
-    private var formDataBinding: Binding<[KVPair]> {
-        Binding(
-            get: { if case .formData(let p) = requestBody { return p } else { return [] } },
-            set: { requestBody = .formData($0) }
-        )
-    }
-
-    private var urlEncodedBinding: Binding<[KVPair]> {
-        Binding(
-            get: { if case .urlEncoded(let p) = requestBody { return p } else { return [] } },
-            set: { requestBody = .urlEncoded($0) }
-        )
     }
 }
 
@@ -204,20 +164,5 @@ private struct RawBodyEditor: View {
         }
         analysisWorkItem = workItem
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: workItem)
-    }
-}
-
-// MARK: - BodyMode
-
-private enum BodyMode: CaseIterable {
-    case none, json, formData, urlEncoded
-
-    var label: String {
-        switch self {
-        case .none: return "None"
-        case .json: return "JSON"
-        case .formData: return "Form Data"
-        case .urlEncoded: return "URL Encoded"
-        }
     }
 }
