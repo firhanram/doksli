@@ -19,7 +19,7 @@ struct KVEditor: View {
             }
 
             ForEach(Array(pairs.enumerated()), id: \.element.id) { index, pair in
-                let pairBinding = $pairs[safeIndex(for: pair)]
+                let pairBinding = binding(for: pair)
 
                 kvRow(pair: pairBinding, index: index)
 
@@ -45,10 +45,17 @@ struct KVEditor: View {
         }
     }
 
-    // MARK: - Safe index lookup
+    // MARK: - Safe binding lookup
 
-    private func safeIndex(for pair: KVPair) -> Int {
-        pairs.firstIndex(where: { $0.id == pair.id }) ?? 0
+    private func binding(for pair: KVPair) -> Binding<KVPair> {
+        Binding(
+            get: { pairs.first(where: { $0.id == pair.id }) ?? pair },
+            set: { newValue in
+                if let i = pairs.firstIndex(where: { $0.id == pair.id }) {
+                    pairs[i] = newValue
+                }
+            }
+        )
     }
 
     // MARK: - Row
