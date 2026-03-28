@@ -14,7 +14,7 @@ struct UTF16Span: Equatable, Hashable {
 
 // MARK: - JSONTokenKind
 
-enum JSONTokenKind: Equatable {
+enum JSONTokenKind: Equatable, Hashable {
     case objectOpen        // {
     case objectClose       // }
     case arrayOpen         // [

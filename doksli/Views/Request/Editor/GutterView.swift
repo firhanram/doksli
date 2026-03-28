@@ -13,6 +13,24 @@ final class GutterView: NSView {
     private let lineNumberColor = AppColors.NS.textFaint
     private let gutterBackground = AppColors.NS.canvas
 
+    /// Cached diagnostic icons — avoids allocating NSImage + SymbolConfiguration on every draw().
+    private static let cachedIcons: [DiagnosticSeverity: NSImage] = {
+        var icons: [DiagnosticSeverity: NSImage] = [:]
+        let entries: [(DiagnosticSeverity, String, NSColor)] = [
+            (.error, "exclamationmark.circle.fill", AppColors.NS.errorText),
+            (.warning, "exclamationmark.triangle.fill", AppColors.NS.warningText),
+            (.hint, "info.circle", AppColors.NS.textFaint),
+        ]
+        for (severity, name, color) in entries {
+            if let image = NSImage(systemSymbolName: name, accessibilityDescription: nil) {
+                let config = NSImage.SymbolConfiguration(pointSize: 10, weight: .regular)
+                    .applying(.init(paletteColors: [color]))
+                icons[severity] = image.withSymbolConfiguration(config) ?? image
+            }
+        }
+        return icons
+    }()
+
     /// Minimum gutter width based on line count.
     var gutterWidth: CGFloat {
         guard let textView = textView else { return 36 }
@@ -94,29 +112,12 @@ final class GutterView: NSView {
     }
 
     private func drawDiagnosticMarker(forLine lineNumber: Int, at y: CGFloat, lineHeight: CGFloat) {
-        guard let severity = diagnosticsByLine[lineNumber] else { return }
-        let iconName: String
-        let iconColor: NSColor
-        switch severity {
-        case .error:
-            iconName = "exclamationmark.circle.fill"
-            iconColor = AppColors.NS.errorText
-        case .warning:
-            iconName = "exclamationmark.triangle.fill"
-            iconColor = AppColors.NS.warningText
-        case .hint:
-            iconName = "info.circle"
-            iconColor = AppColors.NS.textFaint
-        }
-        if let image = NSImage(systemSymbolName: iconName, accessibilityDescription: nil) {
-            let config = NSImage.SymbolConfiguration(pointSize: 10, weight: .regular)
-                .applying(.init(paletteColors: [iconColor]))
-            let tinted = image.withSymbolConfiguration(config) ?? image
-            let iconSize = NSSize(width: 12, height: 12)
-            let iconY = y + (lineHeight - iconSize.height) / 2
-            let iconRect = NSRect(x: 2, y: iconY, width: iconSize.width, height: iconSize.height)
-            tinted.draw(in: iconRect, from: .zero, operation: .sourceOver, fraction: 1.0)
-        }
+        guard let severity = diagnosticsByLine[lineNumber],
+              let tinted = Self.cachedIcons[severity] else { return }
+        let iconSize = NSSize(width: 12, height: 12)
+        let iconY = y + (lineHeight - iconSize.height) / 2
+        let iconRect = NSRect(x: 2, y: iconY, width: iconSize.width, height: iconSize.height)
+        tinted.draw(in: iconRect, from: .zero, operation: .sourceOver, fraction: 1.0)
     }
 
     // MARK: - Helpers

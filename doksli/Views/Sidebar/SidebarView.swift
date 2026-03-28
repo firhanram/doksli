@@ -188,71 +188,72 @@ struct SidebarView: View {
 
     // MARK: - Recursive item rendering
 
-    private func itemRow(_ item: Item) -> AnyView {
+    @ViewBuilder
+    private func itemRow(_ item: Item) -> some View {
         switch item {
         case .folder(let folder):
-            let isExpanded = Binding<Bool>(
-                get: { appState.expandedFolders.contains(folder.id) },
-                set: { newValue in
-                    if newValue { appState.expandedFolders.insert(folder.id) }
-                    else { appState.expandedFolders.remove(folder.id) }
-                }
-            )
-            return AnyView(
-                VStack(spacing: 0) {
-                    DisclosureGroup(isExpanded: isExpanded) {
-                        VStack(spacing: 2) {
-                            ForEach(Array(folder.items.enumerated()), id: \.offset) { _, child in
-                                itemRow(child)
-                            }
-                        }
-                        .padding(.leading, AppSpacing.sm)
-                    } label: {
-                        HStack(spacing: AppSpacing.xs) {
-                            FolderRow(folder: folder)
-                            Spacer()
-                            folderActionsMenu(folder)
-                        }
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            isExpanded.wrappedValue.toggle()
-                        }
-                        .contextMenu { folderContextMenu(folder) }
-                    }
-                }
-                .onDrop(of: [.text], isTargeted: nil) { providers in
-                    handleDrop(providers: providers, targetFolderId: folder.id)
-                }
-                .padding(.leading, AppSpacing.sm)
-                .background(alignment: .leading) {
-                    if isExpanded.wrappedValue {
-                        Rectangle()
-                            .fill(AppColors.muted)
-                            .frame(width: 1)
-                            .padding(.top, 28)
-                            .padding(.leading, 11)
-                    }
-                }
-            )
+            folderItemRow(folder)
 
         case .request(let stub):
-            return AnyView(
-                RequestRow(
-                    stub: stub,
-                    isActive: appState.selectedRequest?.id == stub.id
-                )
+            RequestRow(
+                stub: stub,
+                isActive: appState.selectedRequest?.id == stub.id
+            )
+            .contentShape(Rectangle())
+            .onTapGesture {
+                appState.selectRequest(stub: stub)
+            }
+            .contextMenu { requestContextMenu(stub) }
+            .onDrag {
+                draggedItemId = stub.id
+                return NSItemProvider(object: stub.id.uuidString as NSString)
+            }
+            .padding(.leading, AppSpacing.lg)
+            .id(stub.id)
+        }
+    }
+
+    private func folderItemRow(_ folder: Folder) -> some View {
+        let isExpanded = Binding<Bool>(
+            get: { appState.expandedFolders.contains(folder.id) },
+            set: { newValue in
+                if newValue { appState.expandedFolders.insert(folder.id) }
+                else { appState.expandedFolders.remove(folder.id) }
+            }
+        )
+        return VStack(spacing: 0) {
+            DisclosureGroup(isExpanded: isExpanded) {
+                VStack(spacing: 2) {
+                    ForEach(Array(folder.items.enumerated()), id: \.offset) { _, child in
+                        itemRow(child)
+                    }
+                }
+                .padding(.leading, AppSpacing.sm)
+            } label: {
+                HStack(spacing: AppSpacing.xs) {
+                    FolderRow(folder: folder)
+                    Spacer()
+                    folderActionsMenu(folder)
+                }
                 .contentShape(Rectangle())
                 .onTapGesture {
-                    appState.selectRequest(stub: stub)
+                    isExpanded.wrappedValue.toggle()
                 }
-                .contextMenu { requestContextMenu(stub) }
-                .onDrag {
-                    draggedItemId = stub.id
-                    return NSItemProvider(object: stub.id.uuidString as NSString)
-                }
-                .padding(.leading, AppSpacing.lg)
-                .id(stub.id)
-            )
+                .contextMenu { folderContextMenu(folder) }
+            }
+        }
+        .onDrop(of: [.text], isTargeted: nil) { providers in
+            handleDrop(providers: providers, targetFolderId: folder.id)
+        }
+        .padding(.leading, AppSpacing.sm)
+        .background(alignment: .leading) {
+            if isExpanded.wrappedValue {
+                Rectangle()
+                    .fill(AppColors.muted)
+                    .frame(width: 1)
+                    .padding(.top, 28)
+                    .padding(.leading, 11)
+            }
         }
     }
 
