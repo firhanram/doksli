@@ -13,6 +13,12 @@ final class GutterView: NSView {
     private let lineNumberColor = AppColors.NS.textFaint
     private let gutterBackground = AppColors.NS.canvas
 
+    /// Cached line number drawing attributes — avoids dictionary allocation on every draw() call.
+    private lazy var lineNumberAttributes: [NSAttributedString.Key: Any] = [
+        .font: gutterFont,
+        .foregroundColor: lineNumberColor
+    ]
+
     /// Cached diagnostic icons — avoids allocating NSImage + SymbolConfiguration on every draw().
     private static let cachedIcons: [DiagnosticSeverity: NSImage] = {
         var icons: [DiagnosticSeverity: NSImage] = [:]
@@ -35,7 +41,7 @@ final class GutterView: NSView {
     var gutterWidth: CGFloat {
         guard let textView = textView else { return 36 }
         let count = Self.lineCount(in: textView.string)
-        let digitWidth = String(count).size(withAttributes: [.font: gutterFont]).width
+        let digitWidth = String(count).size(withAttributes: lineNumberAttributes).width
         return max(36, digitWidth + 20)
     }
 
@@ -62,14 +68,18 @@ final class GutterView: NSView {
         let visibleGlyphRange = layoutManager.glyphRange(forBoundingRect: visibleRect, in: textContainer)
         let visibleCharRange = layoutManager.characterRange(forGlyphRange: visibleGlyphRange, actualGlyphRange: nil)
 
-        // Count logical lines before the visible range
+        // Count logical lines before the visible range — scan UTF-16 code units
+        // directly instead of allocating a substring copy
         var startingLine = 1
         if visibleCharRange.location > 0 {
-            let prefix = nsString.substring(to: visibleCharRange.location)
-            for ch in prefix where ch == "\n" {
-                startingLine += 1
+            let end = visibleCharRange.location
+            for i in 0..<end {
+                if nsString.character(at: i) == 0x0A { startingLine += 1 }
             }
         }
+
+        // Cache gutter width once per draw cycle (avoids recomputing per line)
+        let currentGutterWidth = gutterWidth
 
         // Draw line numbers for each visible line fragment
         var lineNumber = startingLine
@@ -78,7 +88,7 @@ final class GutterView: NSView {
             rect, _, _, _, _ in
 
             let y = rect.origin.y + textOrigin.y - visibleRect.origin.y
-            self.drawLineNumber(lineNumber, at: y, lineHeight: rect.height)
+            self.drawLineNumber(lineNumber, at: y, lineHeight: rect.height, width: currentGutterWidth)
             self.drawDiagnosticMarker(forLine: lineNumber, at: y, lineHeight: rect.height)
             lastFragmentRect = rect
             lineNumber += 1
@@ -91,7 +101,7 @@ final class GutterView: NSView {
             let lineHeight = lastRect.height > 0 ? lastRect.height : (gutterFont.ascender - gutterFont.descender + gutterFont.leading + 4)
             let y = lastRect.maxY + textOrigin.y - visibleRect.origin.y
             if y >= 0 && y < bounds.height {
-                drawLineNumber(lineNumber, at: y, lineHeight: lineHeight)
+                drawLineNumber(lineNumber, at: y, lineHeight: lineHeight, width: currentGutterWidth)
                 drawDiagnosticMarker(forLine: lineNumber, at: y, lineHeight: lineHeight)
             }
         }
@@ -99,16 +109,12 @@ final class GutterView: NSView {
 
     // MARK: - Drawing helpers
 
-    private func drawLineNumber(_ lineNumber: Int, at y: CGFloat, lineHeight: CGFloat) {
+    private func drawLineNumber(_ lineNumber: Int, at y: CGFloat, lineHeight: CGFloat, width: CGFloat) {
         let lineStr = "\(lineNumber)"
-        let attrs: [NSAttributedString.Key: Any] = [
-            .font: gutterFont,
-            .foregroundColor: lineNumberColor
-        ]
-        let size = lineStr.size(withAttributes: attrs)
-        let x = gutterWidth - size.width - 8
+        let size = lineStr.size(withAttributes: lineNumberAttributes)
+        let x = width - size.width - 8
         lineStr.draw(at: NSPoint(x: x, y: y + (lineHeight - size.height) / 2),
-                     withAttributes: attrs)
+                     withAttributes: lineNumberAttributes)
     }
 
     private func drawDiagnosticMarker(forLine lineNumber: Int, at y: CGFloat, lineHeight: CGFloat) {
