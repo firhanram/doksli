@@ -86,12 +86,35 @@ class AppState: ObservableObject {
     }
     private var responseCache: [UUID: Response] = [:]
     private var errorCache: [UUID: String] = [:]
+    private var systemThemeObserver: NSObjectProtocol?
 
-    var preferredScheme: ColorScheme? {
+    /// Always returns an explicit scheme — never nil.
+    /// Returning nil from .preferredColorScheme just removes the override
+    /// without actively resetting the window appearance, which causes
+    /// stale dark colors when switching from Dark → Automatic.
+    var preferredScheme: ColorScheme {
         switch colorMode {
-        case .system: return nil
         case .light:  return .light
         case .dark:   return .dark
+        case .system: return Self.systemColorScheme
+        }
+    }
+
+    /// Reads the macOS system appearance directly.
+    private static var systemColorScheme: ColorScheme {
+        UserDefaults.standard.string(forKey: "AppleInterfaceStyle") == "Dark" ? .dark : .light
+    }
+
+    /// Call once on app launch to observe system appearance changes.
+    func observeSystemAppearance() {
+        systemThemeObserver = DistributedNotificationCenter.default().addObserver(
+            forName: Notification.Name("AppleInterfaceThemeChangedNotification"),
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            guard let self, self.colorMode == .system else { return }
+            // Trigger re-render so preferredScheme picks up the new system scheme
+            self.objectWillChange.send()
         }
     }
 

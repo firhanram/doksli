@@ -27,6 +27,7 @@ struct doksliApp: App {
                 .environmentObject(appState)
                 .environmentObject(shortcutStore)
                 .preferredColorScheme(appState.preferredScheme)
+                .onAppear { appState.observeSystemAppearance() }
         }
         .commands {
             CommandGroup(replacing: .newItem) {
