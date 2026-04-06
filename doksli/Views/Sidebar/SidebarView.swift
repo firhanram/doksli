@@ -366,7 +366,7 @@ struct SidebarView: View {
         let copyStub = RequestStub(from: copy)
         workspace.collections = workspace.collections.map { collection in
             var col = collection
-            col.items = insertAfter(requestId: stub.id, newItem: .request(copyStub), in: col.items)
+            col.items = SidebarTreeHelpers.insertAfter(requestId: stub.id, newItem: .request(copyStub), in: col.items)
             return col
         }
 
@@ -392,12 +392,12 @@ struct SidebarView: View {
             deletedRequestIds.append(rid)
         }
         if let fid = folderId {
-            collectRequestIds(in: workspace.collections.flatMap(\.items), folderId: fid, into: &deletedRequestIds)
+            SidebarTreeHelpers.collectRequestIds(in: workspace.collections.flatMap(\.items), folderId: fid, into: &deletedRequestIds)
         }
 
         workspace.collections = workspace.collections.map { collection in
             var col = collection
-            col.items = removeItem(requestId: requestId, folderId: folderId, from: col.items)
+            col.items = SidebarTreeHelpers.removeItem(requestId: requestId, folderId: folderId, from: col.items)
             return col
         }
 
@@ -412,31 +412,6 @@ struct SidebarView: View {
         // Delete detail files for removed requests
         for id in deletedRequestIds {
             StorageService.deleteRequest(id: id)
-        }
-    }
-
-    /// Collects all request IDs inside a folder (for cascade delete of detail files).
-    private func collectRequestIds(in items: [Item], folderId: UUID, into ids: inout [UUID]) {
-        for item in items {
-            switch item {
-            case .request(let stub):
-                ids.append(stub.id)
-            case .folder(let f):
-                if f.id == folderId {
-                    collectAllRequestIds(in: f.items, into: &ids)
-                } else {
-                    collectRequestIds(in: f.items, folderId: folderId, into: &ids)
-                }
-            }
-        }
-    }
-
-    private func collectAllRequestIds(in items: [Item], into ids: inout [UUID]) {
-        for item in items {
-            switch item {
-            case .request(let stub): ids.append(stub.id)
-            case .folder(let f): collectAllRequestIds(in: f.items, into: &ids)
-            }
         }
     }
 
@@ -455,7 +430,7 @@ struct SidebarView: View {
 
         workspace.collections = workspace.collections.map { collection in
             var col = collection
-            col.items = addToFolder(folderId: folder.id, newItem: .request(stub), in: col.items)
+            col.items = SidebarTreeHelpers.addToFolder(folderId: folder.id, newItem: .request(stub), in: col.items)
             return col
         }
 
@@ -488,7 +463,7 @@ struct SidebarView: View {
         // Update stub in tree
         workspace.collections = workspace.collections.map { collection in
             var col = collection
-            col.items = renameRequestInItems(requestId: rid, newName: trimmed, in: col.items)
+            col.items = SidebarTreeHelpers.renameRequestInItems(requestId: rid, newName: trimmed, in: col.items)
             return col
         }
 
@@ -520,91 +495,13 @@ struct SidebarView: View {
 
         workspace.collections = workspace.collections.map { collection in
             var col = collection
-            col.items = renameFolderInItems(folderId: fid, newName: trimmed, in: col.items)
+            col.items = SidebarTreeHelpers.renameFolderInItems(folderId: fid, newName: trimmed, in: col.items)
             return col
         }
 
         appState.workspaces[wsIndex] = workspace
         appState.selectedWorkspace = workspace
         appState.saveWorkspaces()
-    }
-
-    private func renameRequestInItems(requestId: UUID, newName: String, in items: [Item]) -> [Item] {
-        items.map { item in
-            switch item {
-            case .request(var stub):
-                if stub.id == requestId { stub.name = newName }
-                return .request(stub)
-            case .folder(var f):
-                f.items = renameRequestInItems(requestId: requestId, newName: newName, in: f.items)
-                return .folder(f)
-            }
-        }
-    }
-
-    private func renameFolderInItems(folderId: UUID, newName: String, in items: [Item]) -> [Item] {
-        items.map { item in
-            switch item {
-            case .request:
-                return item
-            case .folder(var f):
-                if f.id == folderId { f.name = newName }
-                f.items = renameFolderInItems(folderId: folderId, newName: newName, in: f.items)
-                return .folder(f)
-            }
-        }
-    }
-
-    // MARK: - Tree mutation helpers
-
-    private func removeItem(requestId: UUID?, folderId: UUID?, from items: [Item]) -> [Item] {
-        items.compactMap { item in
-            switch item {
-            case .request(let r):
-                if let rid = requestId, r.id == rid { return nil }
-                return item
-            case .folder(let f):
-                if let fid = folderId, f.id == fid { return nil }
-                var folder = f
-                folder.items = removeItem(requestId: requestId, folderId: folderId, from: f.items)
-                return .folder(folder)
-            }
-        }
-    }
-
-    private func insertAfter(requestId: UUID, newItem: Item, in items: [Item]) -> [Item] {
-        var result: [Item] = []
-        for item in items {
-            switch item {
-            case .request(let r):
-                result.append(item)
-                if r.id == requestId {
-                    result.append(newItem)
-                }
-            case .folder(let f):
-                var folder = f
-                folder.items = insertAfter(requestId: requestId, newItem: newItem, in: f.items)
-                result.append(.folder(folder))
-            }
-        }
-        return result
-    }
-
-    private func addToFolder(folderId: UUID, newItem: Item, in items: [Item]) -> [Item] {
-        items.map { item in
-            switch item {
-            case .folder(let f):
-                var folder = f
-                if f.id == folderId {
-                    folder.items.append(newItem)
-                } else {
-                    folder.items = addToFolder(folderId: folderId, newItem: newItem, in: f.items)
-                }
-                return .folder(folder)
-            case .request:
-                return item
-            }
-        }
     }
 
     // MARK: - Drag and drop
@@ -628,23 +525,20 @@ struct SidebarView: View {
         guard var workspace = appState.selectedWorkspace,
               let wsIndex = appState.workspaces.firstIndex(where: { $0.id == workspace.id }) else { return }
 
-        // Don't drop a folder into itself
         if itemId == targetFolderId { return }
 
-        // Find and extract the item
         var extractedItem: Item?
         workspace.collections = workspace.collections.map { collection in
             var col = collection
-            col.items = extractItem(itemId: itemId, from: col.items, extracted: &extractedItem)
+            col.items = SidebarTreeHelpers.extractItem(itemId: itemId, from: col.items, extracted: &extractedItem)
             return col
         }
 
         guard let item = extractedItem else { return }
 
-        // Insert into target folder
         workspace.collections = workspace.collections.map { collection in
             var col = collection
-            col.items = insertIntoFolder(folderId: targetFolderId, item: item, in: col.items)
+            col.items = SidebarTreeHelpers.insertIntoFolder(folderId: targetFolderId, item: item, in: col.items)
             return col
         }
 
@@ -653,42 +547,6 @@ struct SidebarView: View {
         appState.expandedFolders.insert(targetFolderId)
         appState.saveWorkspaces()
         draggedItemId = nil
-    }
-
-    private func extractItem(itemId: UUID, from items: [Item], extracted: inout Item?) -> [Item] {
-        items.compactMap { item in
-            switch item {
-            case .request(let r):
-                if r.id == itemId {
-                    extracted = item
-                    return nil
-                }
-                return item
-            case .folder(var f):
-                if f.id == itemId {
-                    extracted = item
-                    return nil
-                }
-                f.items = extractItem(itemId: itemId, from: f.items, extracted: &extracted)
-                return .folder(f)
-            }
-        }
-    }
-
-    private func insertIntoFolder(folderId: UUID, item: Item, in items: [Item]) -> [Item] {
-        items.map { existing in
-            switch existing {
-            case .folder(var f):
-                if f.id == folderId {
-                    f.items.append(item)
-                } else {
-                    f.items = insertIntoFolder(folderId: folderId, item: item, in: f.items)
-                }
-                return .folder(f)
-            case .request:
-                return existing
-            }
-        }
     }
 
     // MARK: - Search
@@ -744,109 +602,11 @@ struct SidebarView: View {
     }
 
     private func searchResultsList(_ results: [SearchResult]) -> some View {
-        Group {
-            if results.isEmpty {
-                VStack(spacing: AppSpacing.md) {
-                    Spacer()
-                    Image(systemName: "magnifyingglass")
-                        .font(.title)
-                        .foregroundColor(AppColors.textFaint)
-                    Text("No results found")
-                        .font(AppFonts.body)
-                        .foregroundColor(AppColors.textTertiary)
-                    Spacer()
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 0) {
-                            ForEach(Array(results.enumerated()), id: \.element.id) { index, result in
-                                searchResultRow(result, index: index)
-                                    .id(index)
-                            }
-                        }
-                        .padding(.vertical, AppSpacing.sm)
-                    }
-                    .onChange(of: searchSelectedIndex) { newIndex in
-                        withAnimation {
-                            proxy.scrollTo(newIndex, anchor: .center)
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private func highlightedText(_ text: String, matchedIndices: Set<Int>) -> Text {
-        var result = Text("")
-        for (i, char) in text.enumerated() {
-            if matchedIndices.contains(i) {
-                result = result + Text(String(char))
-                    .foregroundColor(AppColors.brand)
-                    .bold()
-            } else {
-                result = result + Text(String(char))
-                    .foregroundColor(AppColors.textPrimary)
-            }
-        }
-        return result
-    }
-
-    private func searchResultRow(_ result: SearchResult, index: Int) -> some View {
-        Button {
-            selectSearchResult(result)
-        } label: {
-            HStack(spacing: AppSpacing.sm) {
-                if let method = result.method {
-                    MethodBadge(method: method)
-                } else {
-                    Image(systemName: "folder")
-                        .font(AppFonts.body)
-                        .foregroundColor(AppColors.textTertiary)
-                        .frame(width: 42)
-                }
-
-                VStack(alignment: .leading, spacing: 2) {
-                    if result.matchedField == .name {
-                        highlightedText(result.name, matchedIndices: Set(result.matchedIndices))
-                            .font(AppFonts.body)
-                            .lineLimit(1)
-                        if let url = result.url, !url.isEmpty {
-                            Text(url)
-                                .font(AppFonts.eyebrow)
-                                .foregroundColor(AppColors.textFaint)
-                                .lineLimit(1)
-                        }
-                    } else {
-                        Text(result.name)
-                            .font(AppFonts.body)
-                            .foregroundColor(AppColors.textPrimary)
-                            .lineLimit(1)
-                        if let url = result.url {
-                            highlightedText(url, matchedIndices: Set(result.matchedIndices))
-                                .font(AppFonts.eyebrow)
-                                .lineLimit(1)
-                        }
-                    }
-
-                    if !result.breadcrumb.isEmpty {
-                        Text(result.breadcrumb)
-                            .font(AppFonts.eyebrow)
-                            .foregroundColor(AppColors.textPlaceholder)
-                            .lineLimit(1)
-                    }
-                }
-
-                Spacer()
-            }
-            .padding(.horizontal, AppSpacing.sm)
-            .padding(.vertical, AppSpacing.xs)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(index == searchSelectedIndex ? AppColors.subtle : Color.clear)
-            .cornerRadius(AppSpacing.radiusCard)
-        }
-        .buttonStyle(.plain)
+        SidebarSearchResultsView(
+            results: results,
+            selectedIndex: $searchSelectedIndex,
+            onSelect: { selectSearchResult($0) }
+        )
     }
 
     private func installSidebarKeyMonitor() {
