@@ -186,13 +186,21 @@ struct SidebarView: View {
         }
     }
 
-    // MARK: - Recursive item rendering
+    // MARK: - Item rendering (non-recursive — folders delegate to FolderItemView)
 
     @ViewBuilder
     private func itemRow(_ item: Item) -> some View {
         switch item {
         case .folder(let folder):
-            folderItemRow(folder)
+            FolderItemView(
+                folder: folder,
+                draggedItemId: $draggedItemId,
+                onRenameRequest: { renameRequest($0) },
+                onDuplicateRequest: { duplicateRequest($0) },
+                onConfirmDelete: { confirmDelete(requestId: $0, folderId: $1, name: $2) },
+                onRenameFolder: { renameFolder($0) },
+                onAddRequestInFolder: { addRequestInFolder($0, method: $1) }
+            )
 
         case .request(let stub):
             RequestRow(
@@ -210,50 +218,6 @@ struct SidebarView: View {
             }
             .padding(.leading, AppSpacing.lg)
             .id(stub.id)
-        }
-    }
-
-    private func folderItemRow(_ folder: Folder) -> some View {
-        let isExpanded = Binding<Bool>(
-            get: { appState.expandedFolders.contains(folder.id) },
-            set: { newValue in
-                if newValue { appState.expandedFolders.insert(folder.id) }
-                else { appState.expandedFolders.remove(folder.id) }
-            }
-        )
-        return VStack(spacing: 0) {
-            DisclosureGroup(isExpanded: isExpanded) {
-                VStack(spacing: 2) {
-                    ForEach(Array(folder.items.enumerated()), id: \.offset) { _, child in
-                        itemRow(child)
-                    }
-                }
-                .padding(.leading, AppSpacing.sm)
-            } label: {
-                HStack(spacing: AppSpacing.xs) {
-                    FolderRow(folder: folder)
-                    Spacer()
-                    folderActionsMenu(folder)
-                }
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    isExpanded.wrappedValue.toggle()
-                }
-                .contextMenu { folderContextMenu(folder) }
-            }
-        }
-        .onDrop(of: [.text], isTargeted: nil) { providers in
-            handleDrop(providers: providers, targetFolderId: folder.id)
-        }
-        .padding(.leading, AppSpacing.sm)
-        .background(alignment: .leading) {
-            if isExpanded.wrappedValue {
-                Rectangle()
-                    .fill(AppColors.muted)
-                    .frame(width: 1)
-                    .padding(.top, 28)
-                    .padding(.leading, 11)
-            }
         }
     }
 
@@ -280,68 +244,6 @@ struct SidebarView: View {
         } label: {
             Label("Delete", systemImage: "trash")
         }
-    }
-
-    @ViewBuilder
-    private func folderContextMenu(_ folder: Folder) -> some View {
-        Button {
-            renameFolder(folder)
-        } label: {
-            Label("Rename", systemImage: "pencil")
-        }
-
-        Menu {
-            ForEach([HTTPMethod.GET, .POST, .PUT, .PATCH, .DELETE, .OPTIONS, .HEAD], id: \.self) { method in
-                Button(method.rawValue) {
-                    addRequestInFolder(folder, method: method)
-                }
-            }
-        } label: {
-            Label("New Request", systemImage: "plus")
-        }
-
-        Divider()
-
-        Button(role: .destructive) {
-            confirmDelete(folderId: folder.id, name: folder.name)
-        } label: {
-            Label("Delete", systemImage: "trash")
-        }
-    }
-
-    private func folderActionsMenu(_ folder: Folder) -> some View {
-        Menu {
-            Button {
-                renameFolder(folder)
-            } label: {
-                Label("Rename", systemImage: "pencil")
-            }
-
-            Menu {
-                ForEach([HTTPMethod.GET, .POST, .PUT, .PATCH, .DELETE, .OPTIONS, .HEAD], id: \.self) { method in
-                    Button(method.rawValue) {
-                        addRequestInFolder(folder, method: method)
-                    }
-                }
-            } label: {
-                Label("New Request", systemImage: "plus")
-            }
-
-            Divider()
-
-            Button(role: .destructive) {
-                confirmDelete(folderId: folder.id, name: folder.name)
-            } label: {
-                Label("Delete", systemImage: "trash")
-            }
-        } label: {
-            Image(systemName: "ellipsis")
-                .font(.caption)
-                .foregroundColor(AppColors.textTertiary)
-        }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
-        .fixedSize()
     }
 
     // MARK: - Context menu actions
@@ -502,51 +404,6 @@ struct SidebarView: View {
         appState.workspaces[wsIndex] = workspace
         appState.selectedWorkspace = workspace
         appState.saveWorkspaces()
-    }
-
-    // MARK: - Drag and drop
-
-    private func handleDrop(providers: [NSItemProvider], targetFolderId: UUID) -> Bool {
-        guard let provider = providers.first else { return false }
-
-        provider.loadItem(forTypeIdentifier: "public.text", options: nil) { data, _ in
-            guard let data = data as? Data,
-                  let uuidString = String(data: data, encoding: .utf8),
-                  let itemId = UUID(uuidString: uuidString) else { return }
-
-            DispatchQueue.main.async {
-                moveItemToFolder(itemId: itemId, targetFolderId: targetFolderId)
-            }
-        }
-        return true
-    }
-
-    private func moveItemToFolder(itemId: UUID, targetFolderId: UUID) {
-        guard var workspace = appState.selectedWorkspace,
-              let wsIndex = appState.workspaces.firstIndex(where: { $0.id == workspace.id }) else { return }
-
-        if itemId == targetFolderId { return }
-
-        var extractedItem: Item?
-        workspace.collections = workspace.collections.map { collection in
-            var col = collection
-            col.items = SidebarTreeHelpers.extractItem(itemId: itemId, from: col.items, extracted: &extractedItem)
-            return col
-        }
-
-        guard let item = extractedItem else { return }
-
-        workspace.collections = workspace.collections.map { collection in
-            var col = collection
-            col.items = SidebarTreeHelpers.insertIntoFolder(folderId: targetFolderId, item: item, in: col.items)
-            return col
-        }
-
-        appState.workspaces[wsIndex] = workspace
-        appState.selectedWorkspace = workspace
-        appState.expandedFolders.insert(targetFolderId)
-        appState.saveWorkspaces()
-        draggedItemId = nil
     }
 
     // MARK: - Search
