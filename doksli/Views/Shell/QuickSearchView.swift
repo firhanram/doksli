@@ -87,7 +87,7 @@ struct QuickSearchView: View {
         .padding(.vertical, AppSpacing.md)
         .onChange(of: query) { newValue in
             searchTask?.cancel()
-            searchTask = Task {
+            searchTask = Task { @MainActor in
                 try? await Task.sleep(for: .milliseconds(150))
                 guard !Task.isCancelled else { return }
                 let trimmed = newValue.trimmingCharacters(in: .whitespaces)
@@ -107,7 +107,7 @@ struct QuickSearchView: View {
     private var resultsList: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: 0) {
                     if query.trimmingCharacters(in: .whitespaces).isEmpty {
                         recentsList
                     } else if let results = searchResults {
