@@ -47,6 +47,10 @@ Define variables per environment and reference them in URLs, headers, and body c
 - Toggle individual variables on/off
 - **Import from Postman** — bring your existing Postman environment exports directly into Doksli
 
+### Postman Collection Import
+
+Migrating from Postman? Right-click the sidebar and select **Import Postman Collection** to load a Postman collection JSON export. Doksli parses the collection structure, preserving folders, request names, methods, URLs, headers, and body content so you can pick up right where you left off.
+
 ### Customizable Keyboard Shortcuts
 
 ![Shortcuts](docs/screenshots/shortcuts.png)
